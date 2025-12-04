@@ -4,6 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     default_h3_resolution: int = 12
 
+    # AWS Settings
+    aws_region: str = "us-east-1"
+
+    sqs_endpoint_url: str | None = None
+    sqs_queue_name: str = "congestion-map-queue"
+
     model_config = SettingsConfigDict(
         env_file=[
             ".env.test",
