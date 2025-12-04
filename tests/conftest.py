@@ -25,7 +25,7 @@ def sqs_endpoint_url() -> str:
     return settings.sqs_endpoint_url
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def sqs_client(sqs_endpoint_url: str) -> AsyncGenerator[SQSClient, None]:
     session = aioboto3.Session()
     async with session.client(  # type: ignore[call-overload]
@@ -39,7 +39,7 @@ async def sqs_client(sqs_endpoint_url: str) -> AsyncGenerator[SQSClient, None]:
         yield cast(SQSClient, client)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def sqs_queue_url(
     sqs_client: SQSClient, sqs_endpoint_url: str
 ) -> AsyncGenerator[str, None]:

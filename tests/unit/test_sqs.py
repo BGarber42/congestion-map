@@ -2,7 +2,7 @@ import pytest
 from types_aiobotocore_sqs.client import SQSClient
 
 from app.utils import get_mock_ping_request
-from app.sqs import send_ping_to_queue, get_ping_from_queue
+from app.sqs import send_ping_to_queue, get_pings_from_queue
 
 
 class TestSQS:
@@ -16,7 +16,10 @@ class TestSQS:
 
         assert message_id is not None
 
-        received_ping = await get_ping_from_queue(sqs_client, sqs_queue_url)
+        received_pings = await get_pings_from_queue(sqs_client, sqs_queue_url)
+
+        assert len(received_pings) > 0
+        received_ping = received_pings[0]
 
         assert received_ping is not None
         assert received_ping.device_id == ping.device_id

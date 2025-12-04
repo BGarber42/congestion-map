@@ -9,8 +9,11 @@ class Settings(BaseSettings):
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
 
+    # SQS Settings
     sqs_endpoint_url: str | None = None
     sqs_queue_name: str = "congestion-map-queue"
+    max_pings: int = 10
+    wait_time_seconds: int = 20
 
     model_config = SettingsConfigDict(
         env_file=[
