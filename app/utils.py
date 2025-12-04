@@ -1,6 +1,20 @@
 from typing import Any, Dict, Literal, Optional, Union, overload
 
+from h3 import latlng_to_cell
+
+from app import settings
 from app.models import PingPayload
+
+# H3 Utility Functions
+
+
+def coords_to_hex(
+    lat: float, lon: float, resolution: int = settings.default_h3_resolution
+) -> str:
+    return latlng_to_cell(lat, lon, resolution)
+
+
+# PingPayload Utility Functions
 
 
 # Type Hinting

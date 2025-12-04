@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    default_h3_resolution: int = 12
+
     model_config = SettingsConfigDict(
         env_file=[
             ".env.test",
