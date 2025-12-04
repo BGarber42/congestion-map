@@ -1,6 +1,7 @@
 from fastapi import status
 from httpx import AsyncClient
 import pytest
+from unittest.mock import ANY
 
 from app.utils import get_mock_ping_request
 
@@ -22,7 +23,7 @@ class TestPingEndpoint:
         response = await async_client.post("/ping", json=ping_payload)
 
         assert response.status_code == status.HTTP_202_ACCEPTED
-        assert response.json() == {"status": "accepted"}
+        assert response.json() == {"status": "accepted", "message_id": ANY}
 
     async def test_invalid_latitude(self, async_client: AsyncClient) -> None:
         ping_payload = get_mock_ping_request({"lat": 91}, return_instance=False)

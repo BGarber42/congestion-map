@@ -7,18 +7,10 @@ from botocore.config import Config
 from types_aiobotocore_sqs.client import SQSClient
 
 from app.settings import settings
-from app.api import app
+from app.api import app, get_sqs_client, get_sqs_queue_url
 
 
-@pytest.fixture(scope="session")
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as async_client:
-        yield async_client
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture
 def sqs_endpoint_url() -> str:
     if settings.sqs_endpoint_url is None:
         raise ValueError("SQS endpoint URL is not set")
@@ -50,3 +42,19 @@ async def sqs_queue_url(
     yield queue_url
 
     await sqs_client.delete_queue(QueueUrl=queue_url)
+
+
+# Doc Ref: https://fastapi.tiangolo.com/advanced/testing-dependencies/
+@pytest.fixture
+async def async_client(
+    sqs_client: SQSClient, sqs_queue_url: str
+) -> AsyncGenerator[AsyncClient, None]:
+    app.dependency_overrides[get_sqs_client] = lambda: sqs_client
+    app.dependency_overrides[get_sqs_queue_url] = lambda: sqs_queue_url
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as async_client:
+        yield async_client
+
+    app.dependency_overrides.clear()
