@@ -2,6 +2,8 @@ from typing import Any, Dict
 
 from fastapi import FastAPI, status
 
+from app.models import PingPayload
+
 app = FastAPI()
 
 
@@ -11,5 +13,5 @@ async def root() -> Dict[str, Any]:
 
 
 @app.post("/ping", status_code=status.HTTP_202_ACCEPTED)
-async def ping(ping_payload: Dict[str, Any]) -> Dict[str, Any]:
+async def ping(ping_payload: PingPayload) -> Dict[str, Any]:
     return {"status": "accepted"}
