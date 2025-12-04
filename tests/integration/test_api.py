@@ -2,6 +2,8 @@ from fastapi import status
 from httpx import AsyncClient
 import pytest
 
+from app.utils import get_mock_ping_request
+
 
 class TestRootEndpoint:
     @pytest.mark.asyncio
@@ -15,12 +17,7 @@ class TestRootEndpoint:
 class TestPingEndpoint:
     @pytest.mark.asyncio
     async def test_valid_ping(self, async_client: AsyncClient) -> None:
-        ping_payload = {
-            "device_id": "abc123",
-            "timestamp": "2025-01-01T12:34:56Z",
-            "lat": 40.743,
-            "lon": -73.989,
-        }
+        ping_payload = get_mock_ping_request().model_dump()
 
         response = await async_client.post("/ping", json=ping_payload)
 
