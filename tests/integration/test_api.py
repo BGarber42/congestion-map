@@ -69,3 +69,13 @@ class TestPingEndpoint:
         response = await async_client.post("/ping", json=ping_payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+class TestCongestionEndpoint:
+    @pytest.mark.asyncio
+    async def test_get_congestion(self, async_client: AsyncClient) -> None:
+        response = await async_client.get("/congestion")
+
+        # TODO: Implement proper tests
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"status": "ok"}
