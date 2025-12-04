@@ -1,7 +1,8 @@
 import pytest
-
-from app.models import PingPayload
 from types_aiobotocore_sqs.client import SQSClient
+
+from app.utils import get_mock_ping_request
+from app.sqs import send_ping_to_queue, get_ping_from_queue
 
 
 class TestSQS:

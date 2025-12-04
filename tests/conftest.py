@@ -32,8 +32,8 @@ async def sqs_client(sqs_endpoint_url: str) -> AsyncGenerator[SQSClient, None]:
         "sqs",
         endpoint_url=sqs_endpoint_url,
         region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
+        aws_access_key_id=settings.aws_access_key_id or "x",
+        aws_secret_access_key=settings.aws_secret_access_key or "x",
         config=Config(retries={"max_attempts": 0}),
     ) as client:
         yield cast(SQSClient, client)
