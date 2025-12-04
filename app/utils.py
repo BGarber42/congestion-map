@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, overload
+from typing import Any, Dict, Literal, Optional, Union, overload
 
 from app.models import PingPayload
 
@@ -20,7 +20,7 @@ def get_mock_ping_request(
 
 def get_mock_ping_request(
     overrides: Optional[Dict[str, Any]] = None, return_instance: bool = True
-) -> PingPayload:
+) -> Union[PingPayload, Dict[str, Any]]:
     ping_data: Dict[str, Any] = {
         "device_id": "abc123",
         "timestamp": "2025-01-01T12:34:56Z",
