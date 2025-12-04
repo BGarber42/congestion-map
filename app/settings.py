@@ -11,9 +11,13 @@ class Settings(BaseSettings):
 
     # SQS Settings
     sqs_endpoint_url: str | None = None
-    sqs_queue_name: str = "congestion-map-queue"
+    sqs_queue_name: str = "pings-queue"
     max_pings: int = 10
     wait_time_seconds: int = 20
+
+    # DynamoDB Settings
+    dynamodb_endpoint_url: str | None = None
+    dynamodb_table_name: str = "congestion-table"
 
     model_config = SettingsConfigDict(
         env_file=[
