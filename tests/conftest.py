@@ -1,10 +1,10 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-import aioboto3  # type: ignore
+import aioboto3
 from botocore.config import Config
-from mypy_boto3_sqs.client import SQSClient
+from types_aiobotocore_sqs.client import SQSClient
 
 from app.settings import settings
 from app.api import app
@@ -28,7 +28,7 @@ def sqs_endpoint_url() -> str:
 @pytest.fixture(scope="session")
 async def sqs_client(sqs_endpoint_url: str) -> AsyncGenerator[SQSClient, None]:
     session = aioboto3.Session()
-    async with session.client(
+    async with session.client(  # type: ignore[call-overload]
         "sqs",
         endpoint_url=sqs_endpoint_url,
         region_name=settings.aws_region,
@@ -36,7 +36,7 @@ async def sqs_client(sqs_endpoint_url: str) -> AsyncGenerator[SQSClient, None]:
         aws_secret_access_key=settings.aws_secret_access_key,
         config=Config(retries={"max_attempts": 0}),
     ) as client:
-        yield client
+        yield cast(SQSClient, client)
 
 
 @pytest.fixture(scope="session")
