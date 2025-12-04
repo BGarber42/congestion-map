@@ -6,7 +6,7 @@ from app.models import PingPayload
 def get_mock_ping_request(
     overrides: Optional[Dict[str, Any]] = None, return_instance: bool = True
 ) -> PingPayload:
-    ping_data = {
+    ping_data: Dict[str, Any] = {
         "device_id": "abc123",
         "timestamp": "2025-01-01T12:34:56Z",
         "lat": 40.743,
