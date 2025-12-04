@@ -25,12 +25,7 @@ class TestPingEndpoint:
         assert response.json() == {"status": "accepted"}
 
     async def test_invalid_latitude(self, async_client: AsyncClient) -> None:
-        ping_payload = {
-            "device_id": "abc123",
-            "timestamp": "2025-01-01T12:34:56Z",
-            "lat": 91,
-            "lon": -73.989,
-        }
+        ping_payload = get_mock_ping_request({"lat": 91}, return_instance=False)
 
         response = await async_client.post("/ping", json=ping_payload)
 
