@@ -1,3 +1,5 @@
+import pytest
+
 from app.utils import coords_to_hex
 
 
@@ -18,3 +20,10 @@ class TestH3:
         hex2 = coords_to_hex(lat=lat2, lon=lon2)
 
         assert hex1 != hex2
+
+    def test_same_coordinate_wrap(self) -> None:
+        # TIL: H3 wraps coordinates around the world
+        hex1 = coords_to_hex(lat=10, lon=10)
+        hex2 = coords_to_hex(lat=370, lon=10)
+
+        assert hex1 == hex2
