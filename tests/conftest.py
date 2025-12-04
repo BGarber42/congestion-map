@@ -5,6 +5,7 @@ from httpx import AsyncClient, ASGITransport
 
 from app.api import app
 
+
 @pytest.fixture(scope="session")
 async def async_client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(

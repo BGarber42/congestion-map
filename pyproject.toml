@@ -20,7 +20,8 @@ dev = [
     "mypy~=1.19",
     "tzdata>=2025.2",
     "boto3-stubs~=1.42",
-    "types-aiobotocore~=2.26"
+    "types-aiobotocore~=2.26",
+    "black~=25.11"
 ]
 
 
