@@ -1,11 +1,9 @@
-from h3 import latlng_to_cell
+from app.utils import coords_to_hex
 
 
 class TestH3:
     def test_coords_to_hex(self) -> None:
-        lat = 40.743
-        lon = -73.989
-        expected_hex = latlng_to_cell(lat, lon, 12)
+        expected_hex = coords_to_hex(lat=40.743, lon=-73.989)
 
         assert isinstance(expected_hex, str)
         assert len(expected_hex) >= 1
@@ -16,7 +14,7 @@ class TestH3:
         lat1, lon1 = 40.743, -73.989  # New York
         lat2, lon2 = 37.7749, -122.4194  # San Francisco
 
-        hex1 = latlng_to_cell(lat1, lon1, 12)
-        hex2 = latlng_to_cell(lat2, lon2, 12)
+        hex1 = coords_to_hex(lat=lat1, lon=lon1)
+        hex2 = coords_to_hex(lat=lat2, lon=lon2)
 
         assert hex1 != hex2

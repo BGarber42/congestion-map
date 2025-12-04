@@ -2,7 +2,7 @@ from typing import Any, Dict, Literal, Optional, Union, overload
 
 from h3 import latlng_to_cell
 
-from app import settings
+from app.settings import settings
 from app.models import PingPayload
 
 # H3 Utility Functions
