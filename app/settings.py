@@ -6,6 +6,8 @@ class Settings(BaseSettings):
 
     # AWS Settings
     aws_region: str = "us-east-1"
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
 
     sqs_endpoint_url: str | None = None
     sqs_queue_name: str = "congestion-map-queue"

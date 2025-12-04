@@ -21,6 +21,7 @@ dev = [
     "tzdata>=2025.2",
     "boto3-stubs~=1.42",
     "types-aiobotocore~=2.26",
+    "mypy-boto3-sqs~=1.42",
     "black~=25.11"
 ]
 
