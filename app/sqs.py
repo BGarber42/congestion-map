@@ -9,7 +9,7 @@ from app.settings import settings
 
 async def send_ping_to_queue(
     sqs_client: SQSClient, sqs_queue_url: str, ping: PingPayload
-) -> None:
+) -> str:
     message_body = ping.model_dump_json()
 
     response = await sqs_client.send_message(
@@ -22,7 +22,7 @@ async def send_ping_to_queue(
 
 async def get_pings_from_queue(
     sqs_client: SQSClient, sqs_queue_url: str
-) -> Union[List[PingPayload], None]:
+) -> List[PingPayload]:
     response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,
         MaxNumberOfMessages=settings.max_pings,
