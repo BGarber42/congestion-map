@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=[
             ".env.test",
+            ".env.dev",
             ".env",
         ],  # Load .env.test first, then .env (later files override earlier)
         env_file_encoding="utf-8",
