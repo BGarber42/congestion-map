@@ -1,6 +1,21 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional, overload
 
 from app.models import PingPayload
+
+
+# Type Hinting
+# Doc Ref: https://docs.python.org/3/library/typing.html#typing.overload
+# Doc Ref: https://mypy.readthedocs.io/en/stable/more_types.html
+@overload
+def get_mock_ping_request(
+    overrides: Optional[Dict[str, Any]] = None, return_instance: Literal[True] = True
+) -> PingPayload: ...
+
+
+@overload
+def get_mock_ping_request(
+    overrides: Optional[Dict[str, Any]] = None, return_instance: Literal[False] = ...
+) -> Dict[str, Any]: ...
 
 
 def get_mock_ping_request(
