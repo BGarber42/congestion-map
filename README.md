@@ -232,7 +232,9 @@ The model was then improved to utilize a composite key, `h3_hex` served as the P
 
 ## Future Improvements
 
-If given more time, the existing code could be refactored to improve modularity and reduce individual function complexity, this can improve readability and maintainability. 
+If given more time, the existing code could be refactored to improve modularity and reduce individual function complexity, this can improve readability and maintainability.
+
+IE: Splitting out the api endpoints to separate files, separating out business logic, individualizing schemas/models, separating out the external services. 
 
 Other points that could be addressed:
 
