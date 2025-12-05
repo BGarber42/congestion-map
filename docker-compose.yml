@@ -1,0 +1,45 @@
+name: congestionmap
+
+services:
+  api:
+    build:
+      context: .
+    ports:
+      - "8000:80"
+    environment:
+      - SQS_ENDPOINT_URL=http://elasticmq:9324
+      - DYNAMODB_ENDPOINT_URL=http://dynamodb:8000
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_SESSION_TOKEN=
+    depends_on:
+      - dynamodb
+      - elasticmq
+
+  worker:
+    build:
+      context: .
+    # The entrypoint.sh script will run first, and then execute this command
+    command: ["python", "run_worker.py"]
+    environment:
+      - SQS_ENDPOINT_URL=http://elasticmq:9324
+      - DYNAMODB_ENDPOINT_URL=http://dynamodb:8000
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_SESSION_TOKEN=
+    depends_on:
+      - dynamodb
+      - elasticmq
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8002:8000"
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+    ports:
+      - "9324:9324" # SQS port
+      - "9325:9325" # Admin dashboard

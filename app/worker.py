@@ -15,19 +15,27 @@ from app.sqs import get_pings_from_queue
 logger = logging.getLogger(__name__)
 
 
-def is_valid_timestamp(timestamp: datetime) -> bool:
+def is_valid_timestamp(timestamp: datetime) -> tuple[bool, str]:
     now = datetime.now(timezone.utc)
     max_age = timedelta(seconds=settings.max_ping_age_seconds)
     clock_skew = timedelta(seconds=settings.max_clock_skew_seconds)
 
     if timestamp > now + clock_skew:
-        return False  # Clock too far in the future
+        reason = (
+            f"Timestamp is too far in the future by "
+            f"{(timestamp - now).total_seconds():.0f} seconds."
+        )
+        return False, reason
 
     age = now - timestamp
     if age > max_age:
-        return False  # Ping too old
+        reason = (
+            f"Timestamp is too old by "
+            f"{(age - max_age).total_seconds():.0f} seconds."
+        )
+        return False, reason
 
-    return True
+    return True, "Timestamp is valid."
 
 
 def check_ping_dwell(accepted_at: datetime | None) -> None:
@@ -95,8 +103,12 @@ async def process_ping_from_queue(
         check_ping_dwell(ping.accepted_at)
 
         # Check timestamp validity
-        if not is_valid_timestamp(ping.timestamp):
-            logger.warning(f"Invalid timestamp: {ping.timestamp.isoformat()}")
+        is_valid, reason = is_valid_timestamp(ping.timestamp)
+        if not is_valid:
+            logger.warning(
+                f"Invalid timestamp '{ping.timestamp.isoformat()}' found for device '{ping.device_id}'. "
+                f"Reason: {reason}. Discarding message."
+            )
             await sqs_client.delete_message(
                 QueueUrl=sqs_queue_url,
                 ReceiptHandle=message["ReceiptHandle"],

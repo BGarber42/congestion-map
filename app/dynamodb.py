@@ -1,9 +1,40 @@
 from datetime import datetime
+import logging
 from typing import List
 
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from types_aiobotocore_dynamodb.client import DynamoDBClient
+
 from app.models import PingRecord
+
+logger = logging.getLogger(__name__)
+
+
+async def create_table_if_not_exists(
+    dynamodb_client: DynamoDBClient, dynamodb_table_name: str
+) -> None:
+    try:
+        await dynamodb_client.describe_table(TableName=dynamodb_table_name)
+        logger.info(f"Table {dynamodb_table_name} already exists")
+    except dynamodb_client.exceptions.ResourceNotFoundException:
+        logger.info(f"Table {dynamodb_table_name} does not exist, creating it")
+        await dynamodb_client.create_table(
+            TableName=dynamodb_table_name,
+            KeySchema=[
+                {"AttributeName": "h3_hex", "KeyType": "HASH"},
+                {"AttributeName": "ts", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "h3_hex", "AttributeType": "S"},
+                {"AttributeName": "ts", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+
+        await dynamodb_client.get_waiter("table_exists").wait(
+            TableName=dynamodb_table_name
+        )
+        logger.info(f"Table {dynamodb_table_name} created")
 
 
 async def store_ping_in_dynamodb(
