@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import AsyncExitStack
 from types import TracebackType
-from typing import Optional, Type
+from typing import Optional, Self, Type
 
 import aioboto3
 from botocore.config import Config
@@ -31,14 +31,14 @@ class AWSClientManager:
         self._exit_stack = AsyncExitStack()
         self._session = aioboto3.Session()
 
-    async def __aenter__(self) -> "AWSClientManager":
+    async def __aenter__(self) -> Self:
         connected = False
         while not connected:
             try:
                 logger.info("Attempting to connect to AWS services...")
                 for service_name in self._service_names:
                     client = await self._exit_stack.enter_async_context(
-                        self._session.client(
+                        self._session.client(  # type: ignore[call-overload]
                             service_name,
                             endpoint_url=getattr(
                                 settings, f"{service_name}_endpoint_url"
@@ -82,7 +82,7 @@ class AWSClientManager:
     ) -> None:
         await self.shutdown()
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Clean up all managed clients."""
         self.clients.clear()
         await self._exit_stack.aclose()
