@@ -2,7 +2,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Congestion Map Settings
     default_h3_resolution: int = 12
+    default_congestion_window: int = 30
 
     # Ping validation settings
     max_clock_skew_seconds: int = 15 * 60  # 15 m

@@ -74,3 +74,30 @@ async def query_pings_by_hex(
             )
         )
     return records
+
+
+async def query_recent_pings(
+    dynamodb_client: DynamoDBClient, dynamodb_table_name: str, cutoff: datetime
+) -> List[PingRecord]:
+    response = await dynamodb_client.query(
+        TableName=dynamodb_table_name,
+        KeyConditionExpression="timestamp >= :cutoff",
+        ExpressionAttributeValues={":cutoff": {"S": cutoff.isoformat()}},
+    )
+
+    items = response.get("Items", [])
+    pings: List[PingRecord] = []
+
+    for item in items:
+        pings.append(
+            PingRecord(
+                h3_hex=item["h3_hex"]["S"],
+                device_id=item["device_id"]["S"],
+                timestamp=datetime.fromisoformat(item["timestamp"]["S"]),
+                lat=Latitude(item["lat"]["N"]),
+                lon=Longitude(item["lon"]["N"]),
+                accepted_at=datetime.fromisoformat(item["accepted_at"]["S"]),
+                processed_at=datetime.fromisoformat(item["processed_at"]["S"]),
+            )
+        )
+    return pings
