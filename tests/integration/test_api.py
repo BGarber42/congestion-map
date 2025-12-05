@@ -2,8 +2,13 @@ from fastapi import status
 from httpx import AsyncClient
 import pytest
 from unittest.mock import ANY
+from datetime import datetime, timezone
+from types_aiobotocore_dynamodb.client import DynamoDBClient
+from types_aiobotocore_sqs.client import SQSClient
 
-from app.utils import get_mock_ping_request
+from app.utils import get_mock_ping_request, coords_to_hex
+from app.models import PingRecord
+from app.dynamodb import store_ping_in_dynamodb
 
 
 class TestRootEndpoint:
@@ -79,3 +84,32 @@ class TestCongestionEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == {"congestion": []}
+
+    @pytest.mark.asyncio
+    async def test_recent_congestion(
+        self,
+        async_client: AsyncClient,
+        dynamodb_client: DynamoDBClient,
+        dynamodb_table_name: str,
+    ) -> None:
+        ping = get_mock_ping_request()
+        h3_hex = coords_to_hex(ping.lat, ping.lon)
+        record = PingRecord(
+            h3_hex=h3_hex,
+            device_id=ping.device_id,
+            timestamp=ping.timestamp,
+            lat=ping.lat,
+            lon=ping.lon,
+            accepted_at=datetime.now(timezone.utc),
+            processed_at=datetime.now(timezone.utc),
+        )
+        await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, record)
+
+        response = await async_client.get("/congestion")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "congestion" in data
+        assert len(data["congestion"]) == 1
+        assert data["congestion"][0]["h3_hex"] == h3_hex
+        assert data["congestion"][0]["device_count"] == 1

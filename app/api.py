@@ -11,6 +11,7 @@ from botocore.config import Config
 from app.models import PingPayload
 from app.sqs import send_ping_to_queue
 from app.settings import settings
+from app.utils import coords_to_hex
 
 ## Housekeeping dependencies
 sqs_client: SQSClient | None = None
