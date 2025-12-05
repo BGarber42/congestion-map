@@ -1,4 +1,5 @@
 from typing import Any, Dict, Literal, Optional, Union, overload
+from datetime import datetime, timezone
 
 from h3 import latlng_to_cell  # type: ignore
 
@@ -37,7 +38,7 @@ def get_mock_ping_request(
 ) -> Union[PingPayload, Dict[str, Any]]:
     ping_data: Dict[str, Any] = {
         "device_id": "abc123",
-        "timestamp": "2025-01-01T12:34:56Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "lat": 40.743,
         "lon": -73.989,
     }

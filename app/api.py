@@ -1,5 +1,6 @@
 from typing import Any, Dict, AsyncGenerator, Annotated
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, status, Depends
 from types_aiobotocore_sqs.client import SQSClient
@@ -66,5 +67,7 @@ async def ping(
     sqs_client: Annotated[SQSClient, Depends(get_sqs_client)],
     sqs_queue_url: Annotated[str, Depends(get_sqs_queue_url)],
 ) -> Dict[str, Any]:
+    ping_payload.accepted_at = datetime.now(timezone.utc)
+
     message_id = await send_ping_to_queue(sqs_client, sqs_queue_url, ping_payload)
     return {"status": "accepted", "message_id": message_id}

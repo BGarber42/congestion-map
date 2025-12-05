@@ -16,6 +16,7 @@ async def store_ping_in_dynamodb(
         "timestamp": {"S": ping_record.timestamp.isoformat()},
         "lat": {"N": str(ping_record.lat)},
         "lon": {"N": str(ping_record.lon)},
+        "accepted_at": {"S": ping_record.accepted_at.isoformat()},
         "processed_at": {"S": ping_record.processed_at.isoformat()},
     }
     await dynamodb_client.put_item(
@@ -44,6 +45,7 @@ async def get_ping_from_dynamodb(
         timestamp=datetime.fromisoformat(item["timestamp"]["S"]),
         lat=Latitude(item["lat"]["N"]),
         lon=Longitude(item["lon"]["N"]),
+        accepted_at=datetime.fromisoformat(item["accepted_at"]["S"]),
         processed_at=datetime.fromisoformat(item["processed_at"]["S"]),
     )
 
@@ -67,6 +69,7 @@ async def query_pings_by_hex(
                 timestamp=datetime.fromisoformat(item["timestamp"]["S"]),
                 lat=Latitude(item["lat"]["N"]),
                 lon=Longitude(item["lon"]["N"]),
+                accepted_at=datetime.fromisoformat(item["accepted_at"]["S"]),
                 processed_at=datetime.fromisoformat(item["processed_at"]["S"]),
             )
         )

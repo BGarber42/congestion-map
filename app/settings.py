@@ -4,6 +4,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     default_h3_resolution: int = 12
 
+    # Ping validation settings
+    max_clock_skew_seconds: int = 15 * 60  # 15 m
+    max_ping_age_seconds: int = 30 * 60  # 30 minutes
+    queue_warnings_seconds: int = 60  # 1 minute
+
     # AWS Settings
     aws_region: str = "us-east-1"
     aws_access_key_id: str | None = None

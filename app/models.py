@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 from pydantic import BaseModel, Field, field_serializer
 from pydantic_extra_types.coordinate import Latitude, Longitude
@@ -13,6 +13,7 @@ class PingPayload(BaseModel):
     timestamp: datetime
     lat: Latitude
     lon: Longitude
+    accepted_at: Optional[datetime] = None
 
     # Workaround for datetime not always being automatically serialized
     @field_serializer("timestamp")
@@ -28,9 +29,10 @@ class PingRecord(BaseModel):
     timestamp: datetime
     lat: Latitude
     lon: Longitude
+    accepted_at: datetime
     processed_at: datetime
 
-    @field_serializer("timestamp", "processed_at")
+    @field_serializer("timestamp", "accepted_at", "processed_at")
     def serialize_timestamp(self, v: datetime) -> str:
         return v.isoformat()
 
