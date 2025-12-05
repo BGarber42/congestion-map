@@ -26,6 +26,7 @@ class TestDynamoDB:
             timestamp=ping.timestamp,
             lat=ping.lat,
             lon=ping.lon,
+            accepted_at=datetime.now(timezone.utc),
             processed_at=datetime.now(timezone.utc),
         )
 
@@ -58,6 +59,7 @@ class TestDynamoDB:
             timestamp=ping.timestamp,
             lat=ping.lat,
             lon=ping.lon,
+            accepted_at=datetime.now(timezone.utc),
             processed_at=datetime.now(timezone.utc),
         )
 

@@ -76,6 +76,9 @@ async def process_ping_from_queue(
     pings = []
 
     for message in messages:
+        receipt_handle = message["ReceiptHandle"]
+        message_id = message["MessageId"]
+
         try:
             message_body = message["Body"]
             ping_data = json.loads(message_body)

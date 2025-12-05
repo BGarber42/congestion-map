@@ -1,8 +1,9 @@
 from typing import Any, Dict, AsyncGenerator, Annotated
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import logging
 
-from fastapi import FastAPI, status, Depends
+from fastapi import FastAPI, status, Depends, HTTPException
 from types_aiobotocore_sqs.client import SQSClient
 import aioboto3
 from botocore.config import Config
@@ -14,6 +15,8 @@ from app.settings import settings
 ## Housekeeping dependencies
 sqs_client: SQSClient | None = None
 sqs_queue_url: str | None = None
+
+logger = logging.getLogger(__name__)
 
 
 async def get_sqs_client() -> SQSClient:
@@ -69,5 +72,12 @@ async def ping(
 ) -> Dict[str, Any]:
     ping_payload.accepted_at = datetime.now(timezone.utc)
 
-    message_id = await send_ping_to_queue(sqs_client, sqs_queue_url, ping_payload)
-    return {"status": "accepted", "message_id": message_id}
+    try:
+        message_id = await send_ping_to_queue(sqs_client, sqs_queue_url, ping_payload)
+        return {"status": "accepted", "message_id": message_id}
+    except Exception as e:
+        logger.error(f"Failed to send ping to queue: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable",
+        )
