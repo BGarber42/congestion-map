@@ -140,3 +140,28 @@ class TestCongestionEndpoint:
 
         hex_data = congestion_data[0]
         assert hex_data["h3_hex"] == pings[0].h3_hex
+
+    @pytest.mark.asyncio
+    async def test_congestion_with_coordinates(
+        self,
+        async_client: AsyncClient,
+        make_ping_record: Callable[[], PingRecord],
+        dynamodb_client: DynamoDBClient,
+        dynamodb_table_name: str,
+    ) -> None:
+        pings = [make_ping_record() for _ in range(5)]
+
+        for ping in pings:
+            await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, ping)
+
+        response = await async_client.get(
+            f"/congestion?lat={pings[0].lat}&lon={pings[0].lon}"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        response_data = response.json()
+
+        assert "congestion" in response_data
+        congestion_data = response_data["congestion"]
+
+        assert len(congestion_data) == 1
