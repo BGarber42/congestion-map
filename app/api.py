@@ -1,19 +1,20 @@
-from typing import Any, Dict, AsyncGenerator, Annotated
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 import logging
+from typing import Annotated, Any, AsyncGenerator, Dict
 
-from fastapi import FastAPI, Query, status, Depends, HTTPException
-from types_aiobotocore_dynamodb.client import DynamoDBClient
-from types_aiobotocore_sqs.client import SQSClient
 import aioboto3
 from botocore.config import Config
+from fastapi import Depends, FastAPI, HTTPException, Query, status
+from pydantic_extra_types.coordinate import Latitude, Longitude
+from types_aiobotocore_dynamodb.client import DynamoDBClient
+from types_aiobotocore_sqs.client import SQSClient
 
 from app.congestion import calculate_device_congestion
 from app.dynamodb import query_recent_pings
 from app.models import PingPayload
-from app.sqs import send_ping_to_queue
 from app.settings import settings
+from app.sqs import send_ping_to_queue
 from app.utils import coords_to_hex
 
 ## Housekeeping dependencies
@@ -114,13 +115,30 @@ async def congestion(
     dynamodb_client: Annotated[DynamoDBClient, Depends(get_dynamodb_client)],
     dynamodb_table_name: Annotated[str, Depends(get_dynamodb_table_name)],
     h3_hex: Annotated[str | None, Query()] = None,
+    lat: Annotated[Latitude | None, Query()] = None,
+    lon: Annotated[Longitude | None, Query()] = None,
 ) -> Dict[str, Any]:
     cutoff = datetime.now(timezone.utc) - timedelta(
         minutes=settings.default_congestion_window
     )
 
+    filter_hex = h3_hex
+    if lat and lon:
+        if h3_hex:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot specify both h3_hex and lat/lon",
+            )
+        else:
+            filter_hex = coords_to_hex(lat, lon)
+    elif lat is not None or lon is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must specify both lat and lon",
+        )
+
     recent_pings = await query_recent_pings(
-        dynamodb_client, dynamodb_table_name, cutoff=cutoff, h3_hex=h3_hex
+        dynamodb_client, dynamodb_table_name, cutoff=cutoff, h3_hex=filter_hex
     )
 
     device_counts = calculate_device_congestion(recent_pings)
