@@ -1,13 +1,16 @@
 from typing import Any, Dict, AsyncGenerator, Annotated
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from fastapi import FastAPI, status, Depends, HTTPException
+from types_aiobotocore_dynamodb.client import DynamoDBClient
 from types_aiobotocore_sqs.client import SQSClient
 import aioboto3
 from botocore.config import Config
 
+from app.congestion import calculate_device_congestion
+from app.dynamodb import query_recent_pings
 from app.models import PingPayload
 from app.sqs import send_ping_to_queue
 from app.settings import settings
@@ -16,6 +19,7 @@ from app.utils import coords_to_hex
 ## Housekeeping dependencies
 sqs_client: SQSClient | None = None
 sqs_queue_url: str | None = None
+dynamodb_client: DynamoDBClient | None = None
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,16 @@ async def get_sqs_queue_url() -> str:
     if sqs_queue_url is None:
         raise RuntimeError("SQS queue URL not initialized")
     return sqs_queue_url
+
+
+async def get_dynamodb_client() -> DynamoDBClient:
+    if dynamodb_client is None:
+        raise RuntimeError("DynamoDB client not initialized")
+    return dynamodb_client
+
+
+async def get_dynamodb_table_name() -> str:
+    return settings.dynamodb_table_name
 
 
 # Doc Ref: https://fastapi.tiangolo.com/advanced/events/#lifespan
@@ -85,5 +99,23 @@ async def ping(
 
 
 @app.get("/congestion", status_code=status.HTTP_200_OK)
-async def congestion() -> Dict[str, Any]:
-    return {"congestion": []}
+async def congestion(
+    dynamodb_client: Annotated[DynamoDBClient, Depends(get_dynamodb_client)],
+    dynamodb_table_name: Annotated[str, Depends(get_dynamodb_table_name)],
+) -> Dict[str, Any]:
+    cutoff = datetime.now(timezone.utc) - timedelta(
+        minutes=settings.default_congestion_window
+    )
+
+    recent_pings = await query_recent_pings(
+        dynamodb_client, dynamodb_table_name, cutoff
+    )
+
+    device_counts = calculate_device_congestion(recent_pings)
+
+    congestion_data = [
+        {"h3_hex": h3_hex, "device_count": device_count}
+        for h3_hex, device_count in device_counts.items()
+    ]
+
+    return {"congestion": congestion_data}
