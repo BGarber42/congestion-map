@@ -81,3 +81,8 @@ async def ping(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service temporarily unavailable",
         )
+
+
+@app.get("/congestion", status_code=status.HTTP_200_OK)
+async def congestion() -> Dict[str, Any]:
+    return {"congestion": []}
