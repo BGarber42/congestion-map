@@ -10,7 +10,7 @@ from pydantic_extra_types.coordinate import Latitude, Longitude
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 from types_aiobotocore_sqs.client import SQSClient
 
-from app.congestion import calculate_device_congestion
+from app.congestion import calculate_device_congestion, calculate_group_congestion
 from app.dynamodb import query_recent_pings
 from app.models import PingPayload
 from app.settings import settings
@@ -117,6 +117,7 @@ async def congestion(
     h3_hex: Annotated[str | None, Query()] = None,
     lat: Annotated[Latitude | None, Query()] = None,
     lon: Annotated[Longitude | None, Query()] = None,
+    resolution: Annotated[int | None, Query(ge=0, le=15)] = None,
 ) -> Dict[str, Any]:
     cutoff = datetime.now(timezone.utc) - timedelta(
         minutes=settings.default_congestion_window
@@ -130,7 +131,10 @@ async def congestion(
                 detail="Cannot specify both h3_hex and lat/lon",
             )
         else:
-            filter_hex = coords_to_hex(lat, lon)
+            end_resolution = (
+                resolution if resolution is not None else settings.default_h3_resolution
+            )
+            filter_hex = coords_to_hex(lat, lon, end_resolution)
     elif lat is not None or lon is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -141,11 +145,24 @@ async def congestion(
         dynamodb_client, dynamodb_table_name, cutoff=cutoff, h3_hex=filter_hex
     )
 
-    device_counts = calculate_device_congestion(recent_pings)
+    if resolution is not None:
+        congestion_counts = calculate_group_congestion(recent_pings, resolution)
+        congestion_data = [
+            {
+                "h3_hex": h,
+                "device_count": data["device_count"],
+                "active_hex_count": data["active_hex_count"],
+                "total_hex_count": data["total_hex_count"],
+            }
+            for h, data in congestion_counts.items()
+        ]
 
-    congestion_data = [
-        {"h3_hex": h3_hex, "device_count": device_count}
-        for h3_hex, device_count in device_counts.items()
-    ]
+    else:
+        device_counts = calculate_device_congestion(recent_pings)
+
+        congestion_data = [
+            {"h3_hex": h3_hex, "device_count": device_count}
+            for h3_hex, device_count in device_counts.items()
+        ]
 
     return {"congestion": congestion_data}
