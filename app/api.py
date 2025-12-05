@@ -1,17 +1,16 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 import logging
-from typing import Annotated, Any, AsyncGenerator, Dict
+from typing import Annotated, Any, AsyncGenerator, Dict, cast
 
-import aioboto3
-from botocore.config import Config
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 from types_aiobotocore_sqs.client import SQSClient
 
+from app.aws_clients import AWSClientManager
 from app.congestion import calculate_device_congestion, calculate_group_congestion
-from app.dynamodb import create_table_if_not_exists, query_recent_pings
+from app.dynamodb import query_recent_pings
 from app.models import PingPayload
 from app.settings import settings
 from app.sqs import send_ping_to_queue
@@ -47,79 +46,27 @@ async def get_dynamodb_table_name() -> str:
     return settings.dynamodb_table_name
 
 
-import asyncio
-from botocore.exceptions import (
-    ClientError,
-    ConnectTimeoutError,
-    ReadTimeoutError,
-    ConnectionClosedError,
-    EndpointConnectionError,
-)
-
-
 # Doc Ref: https://fastapi.tiangolo.com/advanced/events/#lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     global sqs_client, sqs_queue_url, dynamodb_client
 
-    connected = False
-    while not connected:
-        try:
-            logger.info("API attempting to connect to AWS services...")
-            session = aioboto3.Session()
-            async with session.client(  # type: ignore[call-overload]
-                "sqs",
-                endpoint_url=settings.sqs_endpoint_url,
-                region_name=settings.aws_region,
-                aws_access_key_id=settings.aws_access_key_id or "x",
-                aws_secret_access_key=settings.aws_secret_access_key or "x",
-                config=Config(
-                    connect_timeout=2, read_timeout=25, retries={"max_attempts": 0}
-                ),
-            ) as client:
-                sqs_client = client
+    async with AWSClientManager(
+        service_names=["sqs", "dynamodb"]
+    ) as aws_client_manager:
+        sqs_client = cast(SQSClient, aws_client_manager.clients["sqs"])
+        dynamodb_client = cast(DynamoDBClient, aws_client_manager.clients["dynamodb"])
 
-                # The worker is responsible for creating resources.
-                # The API will just wait until they are available.
-                response = await client.get_queue_url(QueueName=settings.sqs_queue_name)
-                sqs_queue_url = response["QueueUrl"]
-                logger.info("API SQS queue found.")
+        # Wait for Queue
+        response = await sqs_client.get_queue_url(QueueName=settings.sqs_queue_name)
+        sqs_queue_url = response["QueueUrl"]
+        logger.info("SQS queue found.")
 
-                async with session.client(  # type: ignore[call-overload]
-                    "dynamodb",
-                    endpoint_url=settings.dynamodb_endpoint_url,
-                    region_name=settings.aws_region,
-                    aws_access_key_id=settings.aws_access_key_id or "x",
-                    aws_secret_access_key=settings.aws_secret_access_key or "x",
-                    config=Config(
-                        connect_timeout=2, read_timeout=25, retries={"max_attempts": 0}
-                    ),
-                ) as ddb_client:
-                    dynamodb_client = ddb_client
-                    # Check if the table exists by trying to describe it.
-                    await ddb_client.describe_table(
-                        TableName=settings.dynamodb_table_name
-                    )
-                    logger.info("API DynamoDB table found.")
+        # Wait for Table
+        await dynamodb_client.describe_table(TableName=settings.dynamodb_table_name)
+        logger.info("DynamoDB table found.")
 
-                    logger.info("API connection to AWS services successful.")
-                    connected = True
-                    yield
-        except (
-            ClientError,
-            ConnectTimeoutError,
-            ReadTimeoutError,
-            ConnectionClosedError,
-            EndpointConnectionError,
-            asyncio.TimeoutError,
-        ) as e:
-            logger.warning(
-                f"API could not connect to AWS services: {type(e).__name__}. Retrying in 3 seconds..."
-            )
-            await asyncio.sleep(3)
-        except Exception as e:
-            logger.error(f"API unexpected error during startup: {e}", exc_info=True)
-            raise
+        yield
 
     # Cleanup
     sqs_client = None

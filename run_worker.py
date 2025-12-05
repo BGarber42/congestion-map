@@ -1,19 +1,17 @@
 import asyncio
 import logging
+from typing import cast
 
-import aioboto3
-from botocore.config import Config
-from botocore.exceptions import (
-    ClientError,
-    ConnectTimeoutError,
-    ReadTimeoutError,
-    ConnectionClosedError,
-    EndpointConnectionError,
-)
+from botocore.exceptions import ClientError
+from types_aiobotocore_dynamodb.client import DynamoDBClient
+from types_aiobotocore_sqs.client import SQSClient
+from types_aiobotocore_dynamodb.client import DynamoDBClient
+from types_aiobotocore_sqs.client import SQSClient
 
-from app.worker import process_ping_from_queue
-from app.settings import settings
+from app.aws_clients import AWSClientManager
 from app.dynamodb import create_table_if_not_exists
+from app.settings import settings
+from app.worker import process_ping_from_queue
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,86 +20,44 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     logger.info("Starting worker")
 
-    connected = False
-    while not connected:
+    async with AWSClientManager(service_names=["sqs", "dynamodb"]) as aws_clients:
+        sqs_client = cast(SQSClient, aws_clients.clients["sqs"])
+        dynamodb_client = cast(DynamoDBClient, aws_clients.clients["dynamodb"])
+
         try:
-            logger.info("Worker attempting to connect to AWS services...")
-            session = aioboto3.Session()
-            async with session.client(
-                "sqs",
-                endpoint_url=settings.sqs_endpoint_url,
-                region_name=settings.aws_region,
-                aws_access_key_id=settings.aws_access_key_id or "x",
-                aws_secret_access_key=settings.aws_secret_access_key or "x",
-                config=Config(
-                    connect_timeout=2, read_timeout=25, retries={"max_attempts": 0}
-                ),
-            ) as sqs_client:
-                try:
-                    response = await sqs_client.get_queue_url(
-                        QueueName=settings.sqs_queue_name
-                    )
-                    sqs_queue_url = response["QueueUrl"]
-                    logger.info(f"Queue {settings.sqs_queue_name} found.")
-                except sqs_client.exceptions.QueueDoesNotExist:
-                    logger.info(
-                        f"Queue {settings.sqs_queue_name} does not exist, creating it"
-                    )
-                    response = await sqs_client.create_queue(
-                        QueueName=settings.sqs_queue_name
-                    )
-                    sqs_queue_url = response["QueueUrl"]
+            response = await sqs_client.get_queue_url(QueueName=settings.sqs_queue_name)
+            sqs_queue_url = response["QueueUrl"]
+            logger.info(f"Queue {settings.sqs_queue_name} found.")
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "QueueDoesNotExist":
+                logger.info(
+                    f"Queue {settings.sqs_queue_name} does not exist, creating it"
+                )
+                response = await sqs_client.create_queue(
+                    QueueName=settings.sqs_queue_name
+                )
+                sqs_queue_url = response["QueueUrl"]
+            else:
+                raise
 
-                async with session.client(
-                    "dynamodb",
-                    endpoint_url=settings.dynamodb_endpoint_url,
-                    region_name=settings.aws_region,
-                    aws_access_key_id=settings.aws_access_key_id or "x",
-                    aws_secret_access_key=settings.aws_secret_access_key or "x",
-                    config=Config(
-                        connect_timeout=2, read_timeout=25, retries={"max_attempts": 0}
-                    ),
-                ) as dynamodb_client:
-                    await create_table_if_not_exists(
-                        dynamodb_client, settings.dynamodb_table_name
-                    )
-                    logger.info("Worker connection to AWS services successful.")
-                    connected = True
+        await create_table_if_not_exists(dynamodb_client, settings.dynamodb_table_name)
 
-                    logger.info("Worker ready to process pings")
-                    while True:
-                        try:
-                            pings = await process_ping_from_queue(
-                                sqs_client,
-                                sqs_queue_url,
-                                dynamodb_client,
-                                settings.dynamodb_table_name,
-                            )
-                            if pings:
-                                logger.info(f"Processed {len(pings)} pings")
-                            else:
-                                # Short sleep to prevent busy-waiting when queue is empty
-                                await asyncio.sleep(1)
-                        except Exception as e:
-                            logger.error(
-                                f"Error during ping processing: {e}", exc_info=True
-                            )
-                            await asyncio.sleep(1)
-        except (
-            ClientError,
-            ConnectTimeoutError,
-            ReadTimeoutError,
-            ConnectionClosedError,
-            EndpointConnectionError,
-            asyncio.TimeoutError,
-        ) as e:
-            logger.warning(
-                f"Worker could not connect to AWS services: {type(e).__name__}. Retrying in 3 seconds..."
-            )
-            await asyncio.sleep(3)
-        except Exception as e:
-            logger.error(f"Worker unexpected error during startup: {e}", exc_info=True)
-            raise
+        logger.info("Worker ready to process pings")
+        while True:
+            try:
+                pings = await process_ping_from_queue(
+                    sqs_client,
+                    sqs_queue_url,
+                    dynamodb_client,
+                    settings.dynamodb_table_name,
+                )
+                if pings:
+                    logger.info(f"Processed {len(pings)} pings")
+                else:
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"Error during ping processing: {e}", exc_info=True)
+                await asyncio.sleep(1)
 
 
 if __name__ == "__main__":
