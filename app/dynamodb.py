@@ -79,9 +79,9 @@ async def query_pings_by_hex(
 async def query_recent_pings(
     dynamodb_client: DynamoDBClient, dynamodb_table_name: str, cutoff: datetime
 ) -> List[PingRecord]:
-    response = await dynamodb_client.query(
+    response = await dynamodb_client.scan(
         TableName=dynamodb_table_name,
-        KeyConditionExpression="ts >= :cutoff",
+        FilterExpression="ts >= :cutoff",
         ExpressionAttributeValues={":cutoff": {"S": cutoff.isoformat()}},
     )
 
