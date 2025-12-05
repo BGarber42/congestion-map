@@ -1,15 +1,17 @@
-from typing import Callable
+from datetime import datetime, timezone
+import random
+from typing import Callable, List
+from unittest.mock import ANY
+
 from fastapi import status
+import h3  # type: ignore
 from httpx import AsyncClient
 import pytest
-from unittest.mock import ANY
-from datetime import datetime, timezone
 from types_aiobotocore_dynamodb.client import DynamoDBClient
-from types_aiobotocore_sqs.client import SQSClient
 
-from app.utils import get_mock_ping_request, coords_to_hex
-from app.models import PingRecord
 from app.dynamodb import store_ping_in_dynamodb
+from app.models import PingRecord
+from app.utils import coords_to_hex, get_mock_ping_request
 
 
 class TestRootEndpoint:
@@ -165,3 +167,45 @@ class TestCongestionEndpoint:
         congestion_data = response_data["congestion"]
 
         assert len(congestion_data) == 1
+
+    @pytest.mark.asyncio
+    async def test_congestion_with_resolution(
+        self,
+        async_client: AsyncClient,
+        make_ping_record: Callable[..., PingRecord],
+        dynamodb_client: DynamoDBClient,
+        dynamodb_table_name: str,
+    ) -> None:
+
+        parent_hex = "8b2a1072d0d5fff"
+        parent_resolution = h3.get_resolution(parent_hex)
+
+        child_resolution = parent_resolution + 1
+
+        children = h3.cell_to_children(parent_hex, child_resolution)
+
+        # Generate random pings in children
+        pings: List[PingRecord] = [
+            make_ping_record(h3_hex=child, device_id=f"device_{child}_{i}")
+            for child in children
+            for i in range(random.randint(1, 5))
+        ]
+
+        for ping in pings:
+            await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, ping)
+
+        response = await async_client.get(f"/congestion?resolution={parent_resolution}")
+
+        assert response.status_code == status.HTTP_200_OK
+        response_data = response.json()
+
+        assert "congestion" in response_data
+        congestion_data = response_data["congestion"]
+
+        assert len(congestion_data) == 1
+
+        result = congestion_data[0]
+        assert result["h3_hex"] == parent_hex
+        assert result["device_count"] == len(pings)
+        assert result["active_hex_count"] == len(children)
+        assert result["total_hex_count"] == len(children)
