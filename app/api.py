@@ -49,7 +49,7 @@ async def get_dynamodb_table_name() -> str:
 # Doc Ref: https://fastapi.tiangolo.com/advanced/events/#lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    global sqs_client, sqs_queue_url
+    global sqs_client, sqs_queue_url, dynamodb_client
 
     session = aioboto3.Session()
     async with session.client(  # type: ignore[call-overload]
@@ -65,10 +65,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         response = await client.get_queue_url(QueueName=settings.sqs_queue_name)
         sqs_queue_url = response["QueueUrl"]
 
-        yield
+        async with session.client(  # type: ignore[call-overload]
+            "dynamodb",
+            endpoint_url=settings.dynamodb_endpoint_url,
+            region_name=settings.aws_region,
+            aws_access_key_id=settings.aws_access_key_id or "x",
+            aws_secret_access_key=settings.aws_secret_access_key or "x",
+            config=Config(retries={"max_attempts": 0}),
+        ) as ddb_client:
+            dynamodb_client = ddb_client
+
+            yield
 
     sqs_client = None
     sqs_queue_url = None
+    dynamodb_client = None
 
 
 app = FastAPI(lifespan=lifespan)

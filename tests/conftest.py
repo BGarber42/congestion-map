@@ -8,7 +8,13 @@ from types_aiobotocore_sqs.client import SQSClient
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 
 from app.settings import settings
-from app.api import app, get_sqs_client, get_sqs_queue_url
+from app.api import (
+    app,
+    get_sqs_client,
+    get_sqs_queue_url,
+    get_dynamodb_client,
+    get_dynamodb_table_name,
+)
 
 
 @pytest.fixture
@@ -99,6 +105,8 @@ async def async_client(
 ) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_sqs_client] = lambda: sqs_client
     app.dependency_overrides[get_sqs_queue_url] = lambda: sqs_queue_url
+    app.dependency_overrides[get_dynamodb_client] = lambda: dynamodb_client
+    app.dependency_overrides[get_dynamodb_table_name] = lambda: dynamodb_table_name
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
