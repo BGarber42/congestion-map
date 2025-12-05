@@ -10,33 +10,20 @@ graph TD
         A[Device/User]
     end
 
-    subgraph "API Layer (FastAPI)"
-        B[POST /ping]
-        C[GET /congestion]
+    subgraph "App Services"
+        B[FastAPI Ingestion]
+        C[SQS Queue]
+        D[Python Worker]
+        E[DynamoDB Table]
     end
 
-    subgraph "Queue (AWS SQS)"
-        D{pings-queue}
-    end
 
-    subgraph "Processing"
-        E[Worker]
-    end
-
-    subgraph "Data Store (AWS DYnamoDB)"
-        F[(congestion-table)]
-    end
-
-    A -- Ping (JSON) --> B
-    B -- Queues Ping --> D
-    E -- Polls Queue --> D
-    E -- Validate/Enrich --> E
-    E -- Stores Record --> F
-    A -- Query --> C
-    C -- Query --> F
-    F -- Pings --> C
-    C -- Congestion Data --> C
-    C -- Returns Info --> A
+    A -- "POST /ping (JSON)" --> B
+    A -- "GET /congestion"" --> B
+    B -- "Queues Ping" --> C
+    D -- "Polls Queue" --> C
+    D -- "Writes to DynamoDB" --> E
+    B -- "Reads Congestion Data" --> E
 ```
 
 ## Running Locally
@@ -152,7 +139,45 @@ You can also query directly by an H3 hex ID.
 curl -X GET "http://127.0.0.1:8000/congestion?h3_hex=8c2a1072595ffff"
 ```
 
+## Design
 
+The design was iterated on and restarted multiple times, with this being the resultant design. 
+
+### Monolith
+
+The initial design was a monolithic Flask application that would store data in memory. This was quickly discarded as it ignored some of the core requirements.  
+
+* **Choice:** Monolithic design exchanged for multiple-services to provide data durability and better performance
+* **Trade-Off:** Exchanging simplier design for more performance, scalability, resiliency. 
+
+### True Async Handling
+
+One of the first changes was to utilize a FastAPI endpoint that handled the full lifecycle of a ping, namely ingest, validation, enrichment, and storage. 
+
+* **Problem**: While FastAPI endpoints are `async`, DB operations may block, and holding connections open before replying will introduce latency and bottlenecks.
+* **Choice**: Separate accepting the payload from the processing. 
+* **Trade-off:** More complex application, requiring a separate worker process. Conversely, this made the `/ping` endpoint faster and more responsive. 
+
+### Redis vs DynamoDB
+
+A choice was made on where the data should be stored. Redis was initially considered as it is both extremely fast and natively supported features that would make querying the stored data extremely fast. 
+
+* **Problem**: Redis by default is strictly in-memory. If it crashes, data is lost. 
+* **Decision**: Using DynamoDB as the backing storage
+* **Trade-Off**: While directly less performant, DynamoDB is durable, can handle serverless deployments and can be scaled easier. 
+
+### DB Design
+
+The main ask of the project is to accept pings and then return current congestion state information. 
+
+* **Problem**: How do you store geospatial information in a way that meets our use case and is performant?
+* **Decision**: I picked H3 from Uber as it provided a fast, hierarchial grid that we could leverage for fast lookups. 
+
+#### Data Model
+
+Figuring out how the data would be stored was another thing that needed to be decided. The first design simply used `h3_hex` as the table's partition key, this would allow easy location based querying. To find recent pings, the application would fetch all pings for that hex and then filter them.
+
+The model was then improved to utilize a composite key, `h3_hex` served as the Partition Key, and `ts` (timestamp) served as the Sort Key. This let us query pings based on location and a specified recency, thus making the `/congestion` endpoint a bit faster.
 
 ## Benchmarking
 
@@ -203,3 +228,15 @@ curl -X GET "http://127.0.0.1:8000/congestion?h3_hex=8c2a1072595ffff"
 | Successful Responses (200) | 476 | 5000 | 5000 | 5000 |
 | Failed / Timed Out Requests | **24** | 0 | 0 | 0 |
 | Total Test Time | 4086 ms | 9394 ms | 9492 ms | 9702 ms |
+
+
+## Future Improvements
+
+If given more time, the existing code could be refactored to improve modularity and reduce individual function complexity, this can improve readability and maintainability. 
+
+Other points that could be addressed:
+
+* **Authn & Authz**: It might be desired for a fully-featured application to restrict access to the endpoints to protect against untrusted clients from exfil'ing data or to prevent malicious junk data to be added.
+*  **Observability**: Currently the application uses the built-in logging facilities of Python. This could be expanded upon by leveraging existing stacks like Prometheus to add both performance and health information. 
+* **Better Congestion Info**: Right now 'congestion' is simply measured as count of active devices in a region in a given window. This could be expanded upon to use more advanced calculations like congestion growth, congestion duration, or a moving average calculation. 
+* **Better Data Storage**: Currently the table will expand without bound, adding a TTL to the table to purge old data or roll-off into long-term storage as time-partitioned Parquet in S3. 
