@@ -101,7 +101,10 @@ async def dynamodb_table_name(
 # Doc Ref: https://fastapi.tiangolo.com/advanced/testing-dependencies/
 @pytest.fixture
 async def async_client(
-    sqs_client: SQSClient, sqs_queue_url: str
+    sqs_client: SQSClient,
+    sqs_queue_url: str,
+    dynamodb_client: DynamoDBClient,
+    dynamodb_table_name: str,
 ) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_sqs_client] = lambda: sqs_client
     app.dependency_overrides[get_sqs_queue_url] = lambda: sqs_queue_url
