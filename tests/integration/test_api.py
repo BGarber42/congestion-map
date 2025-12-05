@@ -1,3 +1,4 @@
+from typing import Callable
 from fastapi import status
 from httpx import AsyncClient
 import pytest
@@ -113,3 +114,29 @@ class TestCongestionEndpoint:
         assert len(data["congestion"]) == 1
         assert data["congestion"][0]["h3_hex"] == h3_hex
         assert data["congestion"][0]["device_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_congestion_with_hex(
+        self,
+        async_client: AsyncClient,
+        make_ping_record: Callable[[], PingRecord],
+        dynamodb_client: DynamoDBClient,
+        dynamodb_table_name: str,
+    ) -> None:
+        pings = [make_ping_record() for _ in range(5)]
+
+        for ping in pings:
+            await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, ping)
+
+        response = await async_client.get(f"/congestion?h3_hex={pings[0].h3_hex}")
+
+        assert response.status_code == status.HTTP_200_OK
+        response_data = response.json()
+
+        assert "congestion" in response_data
+        congestion_data = response_data["congestion"]
+
+        assert len(congestion_data) == 1
+
+        hex_data = congestion_data[0]
+        assert hex_data["h3_hex"] == pings[0].h3_hex

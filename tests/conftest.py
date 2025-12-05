@@ -1,4 +1,7 @@
-from typing import AsyncGenerator, cast
+from datetime import datetime, timedelta, timezone
+import random
+from typing import Any, AsyncGenerator, Callable, cast
+import uuid
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -7,6 +10,7 @@ from botocore.config import Config
 from types_aiobotocore_sqs.client import SQSClient
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 
+from app.models import PingRecord
 from app.settings import settings
 from app.api import (
     app,
@@ -15,6 +19,7 @@ from app.api import (
     get_dynamodb_client,
     get_dynamodb_table_name,
 )
+from app.utils import coords_to_hex
 
 
 @pytest.fixture
@@ -96,6 +101,33 @@ async def dynamodb_table_name(
     yield table_name
 
     await dynamodb_client.delete_table(TableName=table_name)
+
+
+# Doc Ref: https://docs.pytest.org/en/stable/how-to/fixtures.html#factories-as-fixtures
+@pytest.fixture
+def make_ping_record() -> Callable[[], PingRecord]:
+    def _make_ping(**kwargs: Any) -> PingRecord:
+        lat = kwargs.get("lat", random.uniform(-90, 90))
+        lon = kwargs.get("lon", random.uniform(-180, 180))
+
+        accepted_at = datetime.now(timezone.utc)
+        timestamp = accepted_at - timedelta(seconds=random.randint(0, 10))
+        processed_at = accepted_at + timedelta(seconds=random.randint(0, 10))
+
+        defaults = {
+            "lat": lat,
+            "lon": lon,
+            "h3_hex": coords_to_hex(lat, lon),
+            "device_id": uuid.uuid4().hex,
+            "ts": timestamp,
+            "accepted_at": accepted_at,
+            "processed_at": processed_at,
+        }
+
+        data = {**defaults, **kwargs}
+        return PingRecord(**data)
+
+    return _make_ping
 
 
 # Doc Ref: https://fastapi.tiangolo.com/advanced/testing-dependencies/
