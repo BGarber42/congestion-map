@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 import logging
 
-from fastapi import FastAPI, status, Depends, HTTPException
+from fastapi import FastAPI, Query, status, Depends, HTTPException
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 from types_aiobotocore_sqs.client import SQSClient
 import aioboto3
@@ -113,13 +113,14 @@ async def ping(
 async def congestion(
     dynamodb_client: Annotated[DynamoDBClient, Depends(get_dynamodb_client)],
     dynamodb_table_name: Annotated[str, Depends(get_dynamodb_table_name)],
+    h3_hex: Annotated[str | None, Query()] = None,
 ) -> Dict[str, Any]:
     cutoff = datetime.now(timezone.utc) - timedelta(
         minutes=settings.default_congestion_window
     )
 
     recent_pings = await query_recent_pings(
-        dynamodb_client, dynamodb_table_name, cutoff
+        dynamodb_client, dynamodb_table_name, cutoff=cutoff, h3_hex=h3_hex
     )
 
     device_counts = calculate_device_congestion(recent_pings)

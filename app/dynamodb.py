@@ -77,13 +77,26 @@ async def query_pings_by_hex(
 
 
 async def query_recent_pings(
-    dynamodb_client: DynamoDBClient, dynamodb_table_name: str, cutoff: datetime
+    dynamodb_client: DynamoDBClient,
+    dynamodb_table_name: str,
+    cutoff: datetime,
+    h3_hex: str | None = None,
 ) -> List[PingRecord]:
-    response = await dynamodb_client.scan(
-        TableName=dynamodb_table_name,
-        FilterExpression="ts >= :cutoff",
-        ExpressionAttributeValues={":cutoff": {"S": cutoff.isoformat()}},
-    )
+    if h3_hex:
+        response = await dynamodb_client.query(
+            TableName=dynamodb_table_name,
+            KeyConditionExpression="h3_hex = :h3_hex AND ts >= :cutoff",
+            ExpressionAttributeValues={
+                ":h3_hex": {"S": h3_hex},
+                ":cutoff": {"S": cutoff.isoformat()},
+            },
+        )
+    else:
+        response = await dynamodb_client.scan(
+            TableName=dynamodb_table_name,
+            FilterExpression="ts >= :cutoff",
+            ExpressionAttributeValues={":cutoff": {"S": cutoff.isoformat()}},
+        )
 
     items = response.get("Items", [])
     pings: List[PingRecord] = []
