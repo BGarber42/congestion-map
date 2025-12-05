@@ -77,11 +77,11 @@ async def dynamodb_table_name(
         TableName=table_name,
         KeySchema=[
             {"AttributeName": "h3_hex", "KeyType": "HASH"},
-            {"AttributeName": "timestamp", "KeyType": "RANGE"},
+            {"AttributeName": "ts", "KeyType": "RANGE"},
         ],
         AttributeDefinitions=[
             {"AttributeName": "h3_hex", "AttributeType": "S"},
-            {"AttributeName": "timestamp", "AttributeType": "S"},
+            {"AttributeName": "ts", "AttributeType": "S"},
         ],
         BillingMode="PAY_PER_REQUEST",
     )

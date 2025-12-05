@@ -52,7 +52,7 @@ def enrich_ping_record(ping: PingPayload) -> PingRecord:
     return PingRecord(
         h3_hex=h3_hex,
         device_id=ping.device_id,
-        timestamp=ping.timestamp,
+        ts=ping.timestamp,
         lat=ping.lat,
         lon=ping.lon,
         accepted_at=ping.accepted_at,

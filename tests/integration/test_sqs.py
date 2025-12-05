@@ -23,6 +23,6 @@ class TestSQS:
 
         assert received_ping is not None
         assert received_ping.device_id == ping.device_id
-        assert received_ping.timestamp == ping.timestamp
+        assert received_ping.timestamp== ping.timestamp
         assert received_ping.lat == ping.lat
         assert received_ping.lon == ping.lon

@@ -25,7 +25,7 @@ class TestDynamoDB:
         record = PingRecord(
             h3_hex=h3_hex,
             device_id=ping.device_id,
-            timestamp=ping.timestamp,
+            ts=ping.timestamp,
             lat=ping.lat,
             lon=ping.lon,
             accepted_at=datetime.now(timezone.utc),
@@ -35,13 +35,13 @@ class TestDynamoDB:
         await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, record)
 
         retrieved_record = await get_ping_from_dynamodb(
-            dynamodb_client, dynamodb_table_name, record.h3_hex, record.timestamp
+            dynamodb_client, dynamodb_table_name, record.h3_hex, record.ts
         )
 
         assert retrieved_record is not None
         assert retrieved_record.h3_hex == record.h3_hex
         assert retrieved_record.device_id == ping.device_id
-        assert retrieved_record.timestamp == ping.timestamp
+        assert retrieved_record.ts == ping.timestamp
         assert retrieved_record.lat == ping.lat
         assert retrieved_record.lon == ping.lon
         assert retrieved_record.processed_at is not None
@@ -58,7 +58,7 @@ class TestDynamoDB:
         record = PingRecord(
             h3_hex=h3_hex,
             device_id=ping.device_id,
-            timestamp=ping.timestamp,
+            ts=ping.timestamp,
             lat=ping.lat,
             lon=ping.lon,
             accepted_at=datetime.now(timezone.utc),
@@ -84,7 +84,7 @@ class TestDynamoDB:
         new_record = PingRecord(
             h3_hex=coords_to_hex(new_ping.lat, new_ping.lon),
             device_id="new_device",
-            timestamp=new_ping.timestamp,
+            ts=new_ping.timestamp,
             lat=new_ping.lat,
             lon=new_ping.lon,
             accepted_at=now,
@@ -97,7 +97,7 @@ class TestDynamoDB:
         old_record = PingRecord(
             h3_hex=coords_to_hex(old_ping.lat, old_ping.lon),
             device_id="old_device",
-            timestamp=old_ping.timestamp,
+            ts=old_ping.timestamp,
             lat=old_ping.lat,
             lon=old_ping.lon,
             accepted_at=now,
@@ -113,7 +113,7 @@ class TestDynamoDB:
         assert len(pings) == 1
         assert pings[0].h3_hex == new_record.h3_hex
         assert pings[0].device_id == new_record.device_id
-        assert pings[0].timestamp == new_record.timestamp
+        assert pings[0].ts == new_record.ts
         assert pings[0].lat == new_record.lat
         assert pings[0].lon == new_record.lon
         assert pings[0].processed_at == new_record.processed_at

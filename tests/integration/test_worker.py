@@ -29,7 +29,7 @@ class TestWorker:
 
         assert len(processed) == 1
         assert processed[0].device_id == ping.device_id
-        assert processed[0].timestamp == ping.timestamp
+        assert processed[0].ts == ping.timestamp
         assert processed[0].lat == ping.lat
         assert processed[0].lon == ping.lon
 

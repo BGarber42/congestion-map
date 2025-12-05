@@ -16,7 +16,7 @@ def test_calculate_congestion() -> None:
         PingRecord(
             h3_hex="8a0106375dfffff",
             device_id="device_1",
-            timestamp=now,
+            ts=now,
             lat=Latitude(0),
             lon=Longitude(0),
             accepted_at=now,
@@ -25,7 +25,7 @@ def test_calculate_congestion() -> None:
         PingRecord(
             h3_hex="8a0106375dfffff",
             device_id="device_1",
-            timestamp=now,
+            ts=now,
             lat=Latitude(0),
             lon=Longitude(0),
             accepted_at=now,
@@ -34,7 +34,7 @@ def test_calculate_congestion() -> None:
         PingRecord(
             h3_hex="8a0106375dfffff",
             device_id="device_2",
-            timestamp=now,
+            ts=now,
             lat=Latitude(0),
             lon=Longitude(0),
             accepted_at=now,
@@ -43,7 +43,7 @@ def test_calculate_congestion() -> None:
         PingRecord(
             h3_hex="8a01063759fffff",
             device_id="device_3",
-            timestamp=now,
+            ts=now,
             lat=Latitude(0),
             lon=Longitude(0),
             accepted_at=now,

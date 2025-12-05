@@ -13,7 +13,7 @@ async def store_ping_in_dynamodb(
     item = {
         "h3_hex": {"S": ping_record.h3_hex},
         "device_id": {"S": ping_record.device_id},
-        "timestamp": {"S": ping_record.timestamp.isoformat()},
+        "ts": {"S": ping_record.ts.isoformat()},
         "lat": {"N": str(ping_record.lat)},
         "lon": {"N": str(ping_record.lon)},
         "accepted_at": {"S": ping_record.accepted_at.isoformat()},
@@ -33,7 +33,7 @@ async def get_ping_from_dynamodb(
 ) -> PingRecord | None:
     response = await dynamodb_client.get_item(
         TableName=dynamodb_table_name,
-        Key={"h3_hex": {"S": h3_hex}, "timestamp": {"S": timestamp.isoformat()}},
+        Key={"h3_hex": {"S": h3_hex}, "ts": {"S": timestamp.isoformat()}},
     )
     item = response.get("Item")
     if not item:
@@ -42,7 +42,7 @@ async def get_ping_from_dynamodb(
     return PingRecord(
         h3_hex=item["h3_hex"]["S"],
         device_id=item["device_id"]["S"],
-        timestamp=datetime.fromisoformat(item["timestamp"]["S"]),
+        ts=datetime.fromisoformat(item["ts"]["S"]),
         lat=Latitude(item["lat"]["N"]),
         lon=Longitude(item["lon"]["N"]),
         accepted_at=datetime.fromisoformat(item["accepted_at"]["S"]),
@@ -66,7 +66,7 @@ async def query_pings_by_hex(
             PingRecord(
                 h3_hex=item["h3_hex"]["S"],
                 device_id=item["device_id"]["S"],
-                timestamp=datetime.fromisoformat(item["timestamp"]["S"]),
+                ts=datetime.fromisoformat(item["ts"]["S"]),
                 lat=Latitude(item["lat"]["N"]),
                 lon=Longitude(item["lon"]["N"]),
                 accepted_at=datetime.fromisoformat(item["accepted_at"]["S"]),
@@ -81,7 +81,7 @@ async def query_recent_pings(
 ) -> List[PingRecord]:
     response = await dynamodb_client.query(
         TableName=dynamodb_table_name,
-        KeyConditionExpression="timestamp >= :cutoff",
+        KeyConditionExpression="ts >= :cutoff",
         ExpressionAttributeValues={":cutoff": {"S": cutoff.isoformat()}},
     )
 
@@ -93,7 +93,7 @@ async def query_recent_pings(
             PingRecord(
                 h3_hex=item["h3_hex"]["S"],
                 device_id=item["device_id"]["S"],
-                timestamp=datetime.fromisoformat(item["timestamp"]["S"]),
+                ts=datetime.fromisoformat(item["ts"]["S"]),
                 lat=Latitude(item["lat"]["N"]),
                 lon=Longitude(item["lon"]["N"]),
                 accepted_at=datetime.fromisoformat(item["accepted_at"]["S"]),

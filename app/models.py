@@ -26,14 +26,14 @@ class PingPayload(BaseModel):
 class PingRecord(BaseModel):
     h3_hex: str
     device_id: str
-    timestamp: datetime
+    ts: datetime
     lat: Latitude
     lon: Longitude
     accepted_at: datetime
     processed_at: datetime
 
-    @field_serializer("timestamp", "accepted_at", "processed_at")
-    def serialize_timestamp(self, v: datetime) -> str:
+    @field_serializer("ts", "accepted_at", "processed_at")
+    def serialize_ts(self, v: datetime) -> str:
         return v.isoformat()
 
     ...
