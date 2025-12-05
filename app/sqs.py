@@ -5,12 +5,16 @@ from types_aiobotocore_sqs.client import SQSClient
 
 from app.models import PingPayload
 from app.settings import settings
+from app.utils import coords_to_hex
 
 
 async def send_ping_to_queue(
     sqs_client: SQSClient, sqs_queue_url: str, ping: PingPayload
 ) -> str:
-    message_body = ping.model_dump_json()
+    ping_dict = ping.model_dump()
+    ping_dict["h3_hex"] = coords_to_hex(ping.lat, ping.lon)
+
+    message_body = json.dumps(ping_dict)
 
     response = await sqs_client.send_message(
         QueueUrl=sqs_queue_url,

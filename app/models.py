@@ -20,3 +20,18 @@ class PingPayload(BaseModel):
         return v.isoformat()
 
     ...
+
+
+class PingRecord(BaseModel):
+    h3_hex: str
+    device_id: str
+    timestamp: datetime
+    lat: Latitude
+    lon: Longitude
+    processed_at: datetime
+
+    @field_serializer("timestamp", "processed_at")
+    def serialize_timestamp(self, v: datetime) -> str:
+        return v.isoformat()
+
+    ...
