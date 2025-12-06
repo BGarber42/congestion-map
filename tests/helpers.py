@@ -47,7 +47,7 @@ def get_mock_ping_request(
 
 def make_ping_record(overrides: Optional[Dict[str, Any]] = None) -> PingRecord:
     """Helper function to create a PingRecord instance for tests.
-    
+
     Use for testing the data model. Use `get_mock_ping_request` for testing the API.
     """
     now = datetime.now(timezone.utc)
