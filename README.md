@@ -28,7 +28,7 @@ graph TD
 
 ## Running Locally
 
-This project uses `uv` for dependency management. You will also need Docker to run the required AWS services (SQS, DynamoDB) locally using LocalStack.
+This project uses `uv` for dependency management. You will also need Docker to run the required AWS services (SQS, DynamoDB) locally.
 
 ### Prerequisites
 
