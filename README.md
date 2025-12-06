@@ -191,7 +191,7 @@ The model was then improved to utilize a composite key, `h3_hex` served as the P
 
 ## Benchmarking
 
-Unless otherwise specified, this was tested with 4 uvicorn workers. 
+Unless otherwise specified, this was tested with 4 uvicorn workers, between two computers over local WiFi. 
 
 ### Load Test Summary: `/` Endpoint
 
