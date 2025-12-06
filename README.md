@@ -19,11 +19,11 @@ graph TD
 
 
     A -- "POST /ping (JSON)" --> B
-    A -- "GET /congestion" --> B
+    B -- "GET /congestion" --> A
     B -- "Queues Ping" --> C
-    D -- "Polls Queue" --> C
+    C -- "Polls Queue" --> D
     D -- "Writes to DynamoDB" --> E
-    B -- "Reads Congestion Data" --> E
+    E -- "Reads Congestion Data" --> B
 ```
 
 ## Running Locally
