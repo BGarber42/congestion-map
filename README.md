@@ -158,6 +158,12 @@ One of the first changes was to utilize a FastAPI endpoint that handled the full
 * **Choice**: Separate accepting the payload from the processing. 
 * **Trade-off:** More complex application, requiring a separate worker process. Conversely, this made the `/ping` endpoint faster and more responsive. 
 
+
+### Lambda vs ECS/Fargate
+
+The next problem was to determine the deployment architecture. 
+
+
 ### Redis vs DynamoDB
 
 A choice was made on where the data should be stored. Redis was initially considered as it is both extremely fast and natively supported features that would make querying the stored data extremely fast. 
@@ -181,6 +187,8 @@ The model was then improved to utilize a composite key, `h3_hex` served as the P
 
 ## Benchmarking
 
+Unless otherwise specified, this was tested with 4 uvicorn workers. 
+
 ### Load Test Summary: `/` Endpoint
 
 | Metric | 10 RPS | 25 RPS | 50 RPS | 100 RPS | 500 RPS |
@@ -199,18 +207,35 @@ The model was then improved to utilize a composite key, `h3_hex` served as the P
 
 ### Load Test Summary: `POST /ping` Endpoint
 
-| Metric | 10 RPS | 25 RPS | 50 RPS | 100 RPS | 500 RPS |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Timing** | | | | | |
-| Mean Query Speed | 66 ms | 60 ms | 60 ms | 78 ms | 175 ms |
-| Fastest Query Speed | 10 ms | 8 ms | 9 ms | 11 ms | 7 ms |
-| Slowest Query Speed | 294 ms | 298 ms | 314 ms | 340 ms | 407 ms |
-| Actual Mean RPS | 12.44 req/sec | 31.02 req/sec | 59.67 req/sec | 119.76 req/sec | 578.52 req/sec |
-| **Data & Responses** | | | | | |
-| Total Data Transferred | 22 kB | 55 kB | 106 kB | 220 kB | 1.1 MB |
-| Successful Responses (202) | 50 | 125 | 242 | 500 | 2500 |
-| Failed / Timed Out Requests | 0 | 0 | **8** | 0 | 0 |
-| Total Test Time | 4018 ms | 4029 ms | 4055 ms | 4175 ms | 4321 ms |
+
+| Metric | 10 RPS | 25 RPS | 50 RPS | 100 RPS | 500 RPS | 1000 RPS | 2000 RPS |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Timing** | | | | | | | |
+| Mean Query Speed | 66 ms | 60 ms | 69 ms | 78 ms | 175 ms | 553 ms | 2029 ms |
+| Fastest Query Speed | 10 ms | 8 ms | 9 ms | 11 ms | 7 ms | 12 ms | 24 ms |
+| Slowest Query Speed | 294 ms | 298 ms | 266 ms | 340 ms | 407 ms | 1476 ms | 5183 ms |
+| Actual Mean RPS | 12.44 | 31.02 | 61.00 | 119.76 | 578.52 | 924.28 | 1281.89 |
+| **Data & Responses** | | | | | | | |
+| Total Data Transferred | 22 kB | 55 kB | 111 kB | 220 kB | 1.1 MB | 2.2 MB | 4.5 MB |
+| Successful Responses (202) | 50 | 125 | 250 | 500 | 2500 | 5000 | 10000 |
+| Failed / Timed Out | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Total Test Time | 4018 ms | 4029 ms | 4098 ms | 4175 ms | 4321 ms | 5409 ms | 7800 ms |
+
+
+### Load Test Summary: `POST /ping` Endpoint (8 Uvicorn Workers)
+
+| Metric | 1000 RPS | 2000 RPS | 3000 RPS |
+| :--- | :--- | :--- | :--- |
+| **Timing** | | | |
+| Mean Query Speed | 334 ms | 434 ms | 1845 ms |
+| Fastest Query Speed | 10 ms | 14 ms | 19 ms |
+| Slowest Query Speed | 1035 ms | 967 ms | 5884 ms |
+| Actual Mean RPS | 972.00 | 2044.80 | 1976.38 |
+| **Data & Responses** | | | |
+| Total Data Transferred | 2.2 MB | 4.5 MB | 6.7 MB |
+| Successful Responses (202) | 5000 | 10000 | 15000 |
+| Failed / Timed Out | 0 | 0 | 0 |
+| Total Test Time | 5144 ms | 4890 ms | 7589 ms |
 
 ### Load Test Summary: `/congestion` Endpoint (Assorted Tests)
 
