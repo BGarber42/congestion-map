@@ -51,8 +51,8 @@ class AWSClientManager:
                                 settings, f"{service_name}_endpoint_url"
                             ),
                             region_name=settings.aws_region,
-                            aws_access_key_id=settings.aws_access_key_id or "x",
-                            aws_secret_access_key=settings.aws_secret_access_key or "x",
+                            aws_access_key_id=settings.aws_access_key_id,
+                            aws_secret_access_key=settings.aws_secret_access_key,
                             config=Config(
                                 connect_timeout=2,
                                 read_timeout=25,
