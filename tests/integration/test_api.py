@@ -130,13 +130,13 @@ class TestCongestionEndpoint:
     async def test_congestion_with_hex(
         self,
         async_client: AsyncClient,
-        make_ping_record: Callable[[], PingRecord],
+        ping_record_factory: Callable[[], PingRecord],
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
         """Test app with a couple of pings and fetch via hex"""
         # Generate some pings
-        pings = [make_ping_record() for _ in range(5)]
+        pings = [ping_record_factory() for _ in range(5)]
 
         # Store the pings in DynamoDB
         for ping in pings:
@@ -159,13 +159,13 @@ class TestCongestionEndpoint:
     async def test_congestion_with_coordinates(
         self,
         async_client: AsyncClient,
-        make_ping_record: Callable[[], PingRecord],
+        ping_record_factory: Callable[[], PingRecord],
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
         """Test app with a couple of pings and fetch via coordinates"""
         # Generate some pings
-        pings = [make_ping_record() for _ in range(5)]
+        pings = [ping_record_factory() for _ in range(5)]
 
         # Store the pings in DynamoDB
         for ping in pings:
@@ -187,7 +187,7 @@ class TestCongestionEndpoint:
     async def test_congestion_with_resolution(
         self,
         async_client: AsyncClient,
-        make_ping_record: Callable[..., PingRecord],
+        ping_record_factory: Callable[..., PingRecord],
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
@@ -204,7 +204,7 @@ class TestCongestionEndpoint:
 
         # Generate random pings in children
         pings: List[PingRecord] = [
-            make_ping_record(h3_hex=child, device_id=f"device_{child}_{i}")
+            ping_record_factory(h3_hex=child, device_id=f"device_{child}_{i}")
             for child in children
             for i in range(random.randint(1, 5))
         ]
