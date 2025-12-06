@@ -83,7 +83,6 @@ You will need two separate terminals for this step, both with the virtual enviro
 **Terminal 1: Run the FastAPI API Server**
 
 ```bash
-# This will also create the SQS queue on startup
 uv run uvicorn app.api:app --reload
 ```
 The API will be available at `http://127.0.0.1:8000`.
@@ -91,6 +90,7 @@ The API will be available at `http://127.0.0.1:8000`.
 **Terminal 2: Run the SQS Worker**
 
 ```bash
+# This will also create the SQS queue on startup
 uv run python run_worker.py
 ```
 The worker will start polling the SQS queue for incoming pings to process.
