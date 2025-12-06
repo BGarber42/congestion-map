@@ -163,6 +163,10 @@ One of the first changes was to utilize a FastAPI endpoint that handled the full
 
 The next problem was to determine the deployment architecture. 
 
+* **Problem**: Lambda + API Gateway initially seemed like the obvious choice for deployment. It's serverless nature made it cheap when idle and scales fast. However at high usage, per-request/GB-second fees could add up. Cold-starts could potentially cause latency. 
+* **Decision**: Using ECS/Fargate to deploy a full FastAPI application. 
+* **Trade-Off**: While Lambda is simple and burst-friendly, ECS/Fargate has more predictible costs with can be offset with savings plans and RIs, eliminates cold starts, and gives more direct control over scaling. It however is slower to scale than Lambda. 
+
 
 ### Redis vs DynamoDB
 
