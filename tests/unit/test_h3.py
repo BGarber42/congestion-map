@@ -1,5 +1,3 @@
-import pytest
-
 from app.utils import coords_to_hex
 
 

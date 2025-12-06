@@ -8,6 +8,7 @@ from pydantic_extra_types.coordinate import Latitude, Longitude
 # Doc Ref: https://docs.pydantic.dev/latest/concepts/serialization/
 
 
+# Model for the JSON objects we receive
 class PingPayload(BaseModel):
     device_id: Annotated[str, Field(min_length=1)]
     timestamp: datetime
@@ -20,9 +21,11 @@ class PingPayload(BaseModel):
     def serialize_timestamp(self, v: datetime) -> str:
         return v.isoformat()
 
+    # Accept additional parameters, but ignore them
     ...
 
 
+# Model for the DynamoDB items we store
 class PingRecord(BaseModel):
     h3_hex: str
     device_id: str

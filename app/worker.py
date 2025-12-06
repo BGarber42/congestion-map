@@ -10,11 +10,11 @@ from app.models import PingPayload, PingRecord
 from app.settings import settings
 from app.utils import coords_to_hex
 from app.dynamodb import store_ping_in_dynamodb
-from app.sqs import get_pings_from_queue
 
 logger = logging.getLogger(__name__)
 
 
+# Make sure the timestamp is inside our bounds
 def is_valid_timestamp(timestamp: datetime) -> tuple[bool, str]:
     now = datetime.now(timezone.utc)
     max_age = timedelta(seconds=settings.max_ping_age_seconds)
@@ -38,6 +38,7 @@ def is_valid_timestamp(timestamp: datetime) -> tuple[bool, str]:
     return True, "Timestamp is valid."
 
 
+# Helper to log a warning if the ping has been in the queue for too long
 def check_ping_dwell(accepted_at: datetime | None) -> None:
     if accepted_at is None:
         return
@@ -51,10 +52,12 @@ def check_ping_dwell(accepted_at: datetime | None) -> None:
         )
 
 
+# Helper to convert the PingPayload to our DDB PingRecord model
 def enrich_ping_record(ping: PingPayload) -> PingRecord:
     if ping.accepted_at is None:
         raise ValueError("Accepted at is required")
 
+    # Convert the coordinates to the h3 hex id
     h3_hex = coords_to_hex(ping.lat, ping.lon)
 
     return PingRecord(
@@ -68,12 +71,14 @@ def enrich_ping_record(ping: PingPayload) -> PingRecord:
     )
 
 
+# The main worker function that moves pings from SQS to DynamoDB
 async def process_ping_from_queue(
     sqs_client: SQSClient,
     sqs_queue_url: str,
     dynamodb_client: DynamoDBClient,
     dynamodb_table_name: str,
 ) -> List[PingRecord]:
+    # Receive messages from the queue
     response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,
         MaxNumberOfMessages=settings.max_pings,
@@ -84,14 +89,12 @@ async def process_ping_from_queue(
     pings = []
 
     for message in messages:
-        receipt_handle = message["ReceiptHandle"]
-        message_id = message["MessageId"]
-
         try:
             message_body = message["Body"]
             ping_data = json.loads(message_body)
             ping = PingPayload(**ping_data)
         except Exception as e:
+            # TODO: Implement DLQ for unparsable pings rather than dropping them
             logger.error(f"Error parsing ping: {e}")
             await sqs_client.delete_message(
                 QueueUrl=sqs_queue_url,
@@ -109,6 +112,7 @@ async def process_ping_from_queue(
                 f"Invalid timestamp '{ping.timestamp.isoformat()}' found for device '{ping.device_id}'. "
                 f"Reason: {reason}. Discarding message."
             )
+            # TODO: Figure if we want to send this to a DLQ rather than ignoring it
             await sqs_client.delete_message(
                 QueueUrl=sqs_queue_url,
                 ReceiptHandle=message["ReceiptHandle"],
@@ -116,6 +120,7 @@ async def process_ping_from_queue(
             continue
 
         try:
+            # Once we've validated, convert to PingRecord
             happy_ping = enrich_ping_record(ping)
             await store_ping_in_dynamodb(
                 dynamodb_client, dynamodb_table_name, happy_ping
@@ -129,6 +134,7 @@ async def process_ping_from_queue(
             pings.append(happy_ping)
 
         except Exception as e:
+            # TODO: More DLQ possabilities here also
             logger.error(f"Error processing ping: {e}")
             await sqs_client.delete_message(
                 QueueUrl=sqs_queue_url,

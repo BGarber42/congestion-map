@@ -1,6 +1,6 @@
 import asyncio
-import logging
 from contextlib import AsyncExitStack
+import logging
 from types import TracebackType
 from typing import Optional, Self, Type
 
@@ -8,8 +8,8 @@ import aioboto3
 from botocore.config import Config
 from botocore.exceptions import (
     ClientError,
-    ConnectionClosedError,
     ConnectTimeoutError,
+    ConnectionClosedError,
     EndpointConnectionError,
     ReadTimeoutError,
 )
@@ -25,18 +25,25 @@ logger = logging.getLogger(__name__)
 
 
 class AWSClientManager:
+    """
+    Manages AWS clients for the application.
+    """
+
     def __init__(self, service_names: list[str]):
         self._service_names = service_names
         self.clients: dict[str, SQSClient | DynamoDBClient] = {}
         self._exit_stack = AsyncExitStack()
         self._session = aioboto3.Session()
 
+    # __aenter__ is called when we `with` the context manager.
     async def __aenter__(self) -> Self:
         connected = False
         while not connected:
             try:
                 logger.info("Attempting to connect to AWS services...")
+                # Iterate over the service names and create a client for each.
                 for service_name in self._service_names:
+                    # Create a client for the service and add it to the exit stack.
                     client = await self._exit_stack.enter_async_context(
                         self._session.client(  # type: ignore[call-overload]
                             service_name,
@@ -53,7 +60,9 @@ class AWSClientManager:
                             ),
                         )
                     )
+                    # Add the client to the clients dictionary.
                     self.clients[service_name] = client
+                # Log that we connected to the services.
                 logger.info("Connection to AWS services successful.")
                 connected = True
             except (
@@ -74,6 +83,7 @@ class AWSClientManager:
                 raise
         return self
 
+    # __aexit__ is called when we exit the context manager.
     async def __aexit__(
         self,
         exc_type: Optional[Type[BaseException]],

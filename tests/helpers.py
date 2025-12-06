@@ -1,19 +1,9 @@
-from typing import Any, Dict, Literal, Optional, Union, overload
 from datetime import datetime, timezone
+from typing import Any, Dict, Literal, Optional, Union, overload
 
-from h3 import latlng_to_cell  # type: ignore
+from pydantic_extra_types.coordinate import Latitude, Longitude
 
-from app.settings import settings
-from app.models import PingPayload
-
-# H3 Utility Functions
-
-
-def coords_to_hex(
-    lat: float, lon: float, resolution: int = settings.default_h3_resolution
-) -> Any:
-    return latlng_to_cell(lat, lon, resolution)
-
+from app.models import PingPayload, PingRecord
 
 # PingPayload Utility Functions
 
@@ -21,6 +11,8 @@ def coords_to_hex(
 # Type Hinting
 # Doc Ref: https://docs.python.org/3/library/typing.html#typing.overload
 # Doc Ref: https://mypy.readthedocs.io/en/stable/more_types.html
+
+
 @overload
 def get_mock_ping_request(
     overrides: Optional[Dict[str, Any]] = None, return_instance: Literal[True] = True
@@ -33,10 +25,10 @@ def get_mock_ping_request(
 ) -> Dict[str, Any]: ...
 
 
-# Helper to get a sample PingPayload (optionally as a dict)
 def get_mock_ping_request(
     overrides: Optional[Dict[str, Any]] = None, return_instance: bool = True
 ) -> Union[PingPayload, Dict[str, Any]]:
+    """Helper to get a sample PingPayload (optionally as a dict)"""
     ping_data: Dict[str, Any] = {
         "device_id": "abc123",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -51,3 +43,23 @@ def get_mock_ping_request(
         return PingPayload(**ping_data)
     else:
         return ping_data
+
+
+def make_ping_record(overrides: Optional[Dict[str, Any]] = None) -> PingRecord:
+    """Helper function to create a PingRecord instance for tests.
+    
+    Use for testing the data model. Use `get_mock_ping_request` for testing the API.
+    """
+    now = datetime.now(timezone.utc)
+    record_data: Dict[str, Any] = {
+        "h3_hex": "8a0106375dfffff",
+        "device_id": "device_default",
+        "ts": now,
+        "lat": Latitude(0),
+        "lon": Longitude(0),
+        "accepted_at": now,
+        "processed_at": now,
+    }
+    if overrides:
+        record_data.update(overrides)
+    return PingRecord(**record_data)

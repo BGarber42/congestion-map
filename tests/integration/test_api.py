@@ -6,16 +6,16 @@ from unittest.mock import ANY
 from fastapi import status
 import h3  # type: ignore
 from httpx import AsyncClient
-import pytest
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 
 from app.dynamodb import store_ping_in_dynamodb
 from app.models import PingRecord
-from app.utils import coords_to_hex, get_mock_ping_request
+from app.utils import coords_to_hex
+from tests.helpers import get_mock_ping_request
 
 
 class TestRootEndpoint:
-    @pytest.mark.asyncio
+
     async def test_root(self, async_client: AsyncClient) -> None:
         response = await async_client.get("/")
 
@@ -24,9 +24,10 @@ class TestRootEndpoint:
 
 
 class TestPingEndpoint:
-    @pytest.mark.asyncio
+
     async def test_valid_ping(self, async_client: AsyncClient) -> None:
-        ping_payload = get_mock_ping_request().model_dump()
+        """Test a valid ping request"""
+        ping_payload = get_mock_ping_request(return_instance=False)
 
         response = await async_client.post("/ping", json=ping_payload)
 
@@ -34,6 +35,7 @@ class TestPingEndpoint:
         assert response.json() == {"status": "accepted", "message_id": ANY}
 
     async def test_invalid_latitude(self, async_client: AsyncClient) -> None:
+        """Test an invalid latitude"""
         ping_payload = get_mock_ping_request({"lat": 91}, return_instance=False)
 
         response = await async_client.post("/ping", json=ping_payload)
@@ -41,6 +43,7 @@ class TestPingEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_invalid_longitude(self, async_client: AsyncClient) -> None:
+        """Test an invalid longitude"""
         ping_payload = get_mock_ping_request({"lon": 181}, return_instance=False)
 
         response = await async_client.post("/ping", json=ping_payload)
@@ -48,6 +51,7 @@ class TestPingEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_missing_device_id(self, async_client: AsyncClient) -> None:
+        """Test a missing device id"""
         ping_payload = get_mock_ping_request({"device_id": ""}, return_instance=False)
 
         response = await async_client.post("/ping", json=ping_payload)
@@ -55,6 +59,7 @@ class TestPingEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_missing_timestamp(self, async_client: AsyncClient) -> None:
+        """Test a missing timestamp"""
         ping_payload = get_mock_ping_request({"timestamp": None}, return_instance=False)
 
         response = await async_client.post("/ping", json=ping_payload)
@@ -62,6 +67,7 @@ class TestPingEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_not_a_timestamp(self, async_client: AsyncClient) -> None:
+        """Test a non-timestamp timestamp"""
         ping_payload = get_mock_ping_request(
             {"timestamp": "not a timestamp"}, return_instance=False
         )
@@ -71,6 +77,7 @@ class TestPingEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_not_real_coordinates(self, async_client: AsyncClient) -> None:
+        """Test non-real coordinates"""
         ping_payload = get_mock_ping_request(
             {"lat": "somestring", "lon": ["not a number"]}, return_instance=False
         )
@@ -81,20 +88,21 @@ class TestPingEndpoint:
 
 
 class TestCongestionEndpoint:
-    @pytest.mark.asyncio
+
     async def test_no_congestion(self, async_client: AsyncClient) -> None:
+        """Test app with no pings"""
         response = await async_client.get("/congestion")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == {"congestion": []}
 
-    @pytest.mark.asyncio
     async def test_recent_congestion(
         self,
         async_client: AsyncClient,
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
+        """Test app with a couple of pings"""
         ping = get_mock_ping_request()
         h3_hex = coords_to_hex(ping.lat, ping.lon)
         record = PingRecord(
@@ -106,8 +114,10 @@ class TestCongestionEndpoint:
             accepted_at=datetime.now(timezone.utc),
             processed_at=datetime.now(timezone.utc),
         )
+        # Store the ping in DynamoDB
         await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, record)
 
+        # Immediately check the congestion
         response = await async_client.get("/congestion")
 
         assert response.status_code == status.HTTP_200_OK
@@ -117,7 +127,6 @@ class TestCongestionEndpoint:
         assert data["congestion"][0]["h3_hex"] == h3_hex
         assert data["congestion"][0]["device_count"] == 1
 
-    @pytest.mark.asyncio
     async def test_congestion_with_hex(
         self,
         async_client: AsyncClient,
@@ -125,11 +134,15 @@ class TestCongestionEndpoint:
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
+        """Test app with a couple of pings and fetch via hex"""
+        # Generate some pings
         pings = [make_ping_record() for _ in range(5)]
 
+        # Store the pings in DynamoDB
         for ping in pings:
             await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, ping)
 
+        # Fetch the congestion via hex
         response = await async_client.get(f"/congestion?h3_hex={pings[0].h3_hex}")
 
         assert response.status_code == status.HTTP_200_OK
@@ -143,7 +156,6 @@ class TestCongestionEndpoint:
         hex_data = congestion_data[0]
         assert hex_data["h3_hex"] == pings[0].h3_hex
 
-    @pytest.mark.asyncio
     async def test_congestion_with_coordinates(
         self,
         async_client: AsyncClient,
@@ -151,11 +163,15 @@ class TestCongestionEndpoint:
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
+        """Test app with a couple of pings and fetch via coordinates"""
+        # Generate some pings
         pings = [make_ping_record() for _ in range(5)]
 
+        # Store the pings in DynamoDB
         for ping in pings:
             await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, ping)
 
+        # Fetch via coordinates
         response = await async_client.get(
             f"/congestion?lat={pings[0].lat}&lon={pings[0].lon}"
         )
@@ -168,7 +184,6 @@ class TestCongestionEndpoint:
 
         assert len(congestion_data) == 1
 
-    @pytest.mark.asyncio
     async def test_congestion_with_resolution(
         self,
         async_client: AsyncClient,
@@ -176,12 +191,15 @@ class TestCongestionEndpoint:
         dynamodb_client: DynamoDBClient,
         dynamodb_table_name: str,
     ) -> None:
-
+        """Test app with a couple of pings and fetch w/ custom resolution"""
+        # Define the parent hex and resolution
         parent_hex = "8b2a1072d0d5fff"
         parent_resolution = h3.get_resolution(parent_hex)
 
+        # Generate data one level down
         child_resolution = parent_resolution + 1
 
+        # Get the children of the parent hex
         children = h3.cell_to_children(parent_hex, child_resolution)
 
         # Generate random pings in children
@@ -191,9 +209,12 @@ class TestCongestionEndpoint:
             for i in range(random.randint(1, 5))
         ]
 
+        # Store the pings in DynamoDB
+        # TODO: Figure out how to bulk insert these (coroutine?)
         for ping in pings:
             await store_ping_in_dynamodb(dynamodb_client, dynamodb_table_name, ping)
 
+        # Fetch the congestion w/ resolution
         response = await async_client.get(f"/congestion?resolution={parent_resolution}")
 
         assert response.status_code == status.HTTP_200_OK

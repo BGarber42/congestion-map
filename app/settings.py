@@ -31,7 +31,7 @@ class Settings(BaseSettings):
             ".env.test",
             ".env.dev",
             ".env",
-        ],  # Load .env.test first, then .env (later files override earlier)
+        ],  # Load .env.test first, then .env.dev,then .env (later files override earlier)
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

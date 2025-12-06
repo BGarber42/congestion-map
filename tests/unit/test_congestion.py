@@ -1,55 +1,21 @@
 from datetime import datetime, timezone
 
 import h3  # type: ignore
-from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from app.congestion import calculate_device_congestion, calculate_group_congestion
-from app.models import PingRecord
+from tests.helpers import make_ping_record
 
 
 def test_calculate_congestion() -> None:
     """Should calculate the congestion for a given h3_hex."""
-    now = datetime.now(timezone.utc)
 
-    # Two devices, one hex, first device has two pings.
-    # One device second hex, one ping.
     pings = [
-        PingRecord(
-            h3_hex="8a0106375dfffff",
-            device_id="device_1",
-            ts=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-            accepted_at=now,
-            processed_at=now,
-        ),
-        PingRecord(
-            h3_hex="8a0106375dfffff",
-            device_id="device_1",
-            ts=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-            accepted_at=now,
-            processed_at=now,
-        ),
-        PingRecord(
-            h3_hex="8a0106375dfffff",
-            device_id="device_2",
-            ts=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-            accepted_at=now,
-            processed_at=now,
-        ),
-        PingRecord(
-            h3_hex="8a01063759fffff",
-            device_id="device_3",
-            ts=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-            accepted_at=now,
-            processed_at=now,
-        ),
+        # Two devices, one hex, first device has two pings.
+        make_ping_record({"h3_hex": "8a0106375dfffff", "device_id": "device_1"}),
+        make_ping_record({"h3_hex": "8a0106375dfffff", "device_id": "device_1"}),
+        make_ping_record({"h3_hex": "8a0106375dfffff", "device_id": "device_2"}),
+        # One device second hex, one ping.
+        make_ping_record({"h3_hex": "8a01063759fffff", "device_id": "device_3"}),
     ]
 
     congestion = calculate_device_congestion(pings)
@@ -71,42 +37,10 @@ def test_calculate_parent_grid_congestion() -> None:
 
     now = datetime.now(timezone.utc)
     pings = [
-        PingRecord(
-            device_id="device1",
-            h3_hex=first_child,
-            ts=now,
-            accepted_at=now,
-            processed_at=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-        ),
-        PingRecord(
-            device_id="device2",
-            h3_hex=first_child,
-            ts=now,
-            accepted_at=now,
-            processed_at=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-        ),
-        PingRecord(
-            device_id="device2",
-            h3_hex=last_child,
-            ts=now,
-            accepted_at=now,
-            processed_at=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-        ),
-        PingRecord(
-            device_id="device3",
-            h3_hex=last_child,
-            ts=now,
-            accepted_at=now,
-            processed_at=now,
-            lat=Latitude(0),
-            lon=Longitude(0),
-        ),
+        make_ping_record({"device_id": "device1", "h3_hex": first_child}),
+        make_ping_record({"device_id": "device2", "h3_hex": first_child}),
+        make_ping_record({"device_id": "device2", "h3_hex": last_child}),
+        make_ping_record({"device_id": "device3", "h3_hex": last_child}),
     ]
 
     group_congestion = calculate_group_congestion(pings, resolution=11)
