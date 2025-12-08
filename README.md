@@ -28,15 +28,20 @@ graph TD
 
 ## Running Locally
 
-This project uses `uv` for dependency management. You will also need Docker to run the required AWS services (SQS, DynamoDB) locally.
+The project can be ran two ways, with only the AWS services containerized and the application running locally, or fully containerized. 
 
-### Prerequisites
+---
+
+### Hybrid
+
+
+#### Prerequisites
 
 *   Python 3.10+
 *   [Docker](https://www.docker.com/products/docker-desktop/)
 *   [uv](https://github.com/astral-sh/uv) (`pip install uv`)
 
-### 1. Set up the Environment
+#### 1. Set up the Environment
 
 First, create a virtual environment and install the dependencies.
 
@@ -44,14 +49,11 @@ First, create a virtual environment and install the dependencies.
 # Create a virtual environment
 uv venv
 
-# Activate the virtual environment
-source .venv/bin/activate # (or .\.venv\Scripts\activate.bat on Windows)
-
 # Sync dependencies from uv.lock
-uv pip sync
+uv sync
 ```
 
-### 2. Configure Environment Variables
+#### 2. Configure Environment Variables
 
 The application requires environment variables to connect to the local AWS services. Create a file named `.env.dev` in the root of the project with the following content:
 
@@ -66,34 +68,49 @@ AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 ```
 
-### 3. Start Local AWS Services
+#### 3. Start Local AWS Services
 
 In a separate terminal, start the local DynamoDB and SQS services using Docker.
 
 ```bash
-docker compose up
+docker compose up dynamodb elasticmq
 ```
 
 Wait for the services to be ready. You can access the ElasticMQ admin console at http://localhost:9325 to see the queue.
 
 ### 4. Run the API Server and Worker
 
-You will need two separate terminals for this step, both with the virtual environment activated.
+You will need two separate terminals. 
 
-**Terminal 1: Run the FastAPI API Server**
-
-```bash
-uv run uvicorn app.api:app --reload
-```
-The API will be available at `http://127.0.0.1:8000`.
-
-**Terminal 2: Run the SQS Worker**
+**Terminal 1: Run the Worker Process**
 
 ```bash
 # This will also create the SQS queue on startup
 uv run python run_worker.py
 ```
+
 The worker will start polling the SQS queue for incoming pings to process.
+
+**Terminal 2: Run the FastAPI API Server**
+
+```bash
+uv run uvicorn app.api:app --reload
+```
+
+The API will be available at `http://127.0.0.1:8000`.
+
+--- 
+
+### Fully Containerized
+
+*   [Docker](https://www.docker.com/products/docker-desktop/)
+
+#### 1. Start the Application
+
+```bash
+docker compose up --build
+```
+
 
 ## API Usage Examples
 
