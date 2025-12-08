@@ -20,10 +20,11 @@ dev = [
     "httpx~=0.28",
     "mypy~=1.19",
     "tzdata>=2025.2",
-    "boto3-stubs~=1.42",
     "black~=25.11"
 ]
 
+[tool.setuptools]
+packages = ["app"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
