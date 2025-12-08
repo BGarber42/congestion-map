@@ -5,12 +5,11 @@ from typing import cast
 from botocore.exceptions import ClientError
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 from types_aiobotocore_sqs.client import SQSClient
-from types_aiobotocore_dynamodb.client import DynamoDBClient
-from types_aiobotocore_sqs.client import SQSClient
 
-from app.aws_clients import AWSClientManager
+from app.aws_clients import AWSClientManager, retry_aws
 from app.dynamodb import create_table_if_not_exists
 from app.settings import settings
+from app.sqs import get_or_create_queue
 from app.worker import process_ping_from_queue
 
 logging.basicConfig(level=logging.INFO)
@@ -24,23 +23,17 @@ async def main() -> None:
         sqs_client = cast(SQSClient, aws_clients.clients["sqs"])
         dynamodb_client = cast(DynamoDBClient, aws_clients.clients["dynamodb"])
 
-        try:
-            response = await sqs_client.get_queue_url(QueueName=settings.sqs_queue_name)
-            sqs_queue_url = response["QueueUrl"]
-            logger.info(f"Queue {settings.sqs_queue_name} found.")
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "QueueDoesNotExist":
-                logger.info(
-                    f"Queue {settings.sqs_queue_name} does not exist, creating it"
-                )
-                response = await sqs_client.create_queue(
-                    QueueName=settings.sqs_queue_name
-                )
-                sqs_queue_url = response["QueueUrl"]
-            else:
-                raise
+        async def get_queue() -> str:
+            return await get_or_create_queue(sqs_client, settings.sqs_queue_name)
 
-        await create_table_if_not_exists(dynamodb_client, settings.dynamodb_table_name)
+        sqs_queue_url = await retry_aws(get_queue)
+
+        async def create_table() -> None:
+            return await create_table_if_not_exists(
+                dynamodb_client, settings.dynamodb_table_name
+            )
+
+        await retry_aws(create_table)
 
         logger.info("Worker ready to process pings")
         while True:

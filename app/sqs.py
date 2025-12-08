@@ -44,3 +44,17 @@ async def send_ping_to_queue(
     except Exception as e:
         logger.error(f"Unknown error: {e}")
         raise RuntimeError(f"Unknown error: {e}") from e
+
+
+async def get_or_create_queue(sqs_client: SQSClient, queue_name: str) -> str:
+    try:
+        response = await sqs_client.get_queue_url(QueueName=queue_name)
+        sqs_queue_url = response["QueueUrl"]
+        return sqs_queue_url
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "QueueDoesNotExist":
+            logger.info(f"Queue {queue_name} does not exist, creating it")
+            response = await sqs_client.create_queue(QueueName=queue_name)
+            return response["QueueUrl"]
+        else:
+            raise

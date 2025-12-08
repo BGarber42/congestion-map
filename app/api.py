@@ -8,7 +8,7 @@ from pydantic_extra_types.coordinate import Latitude, Longitude
 from types_aiobotocore_dynamodb.client import DynamoDBClient
 from types_aiobotocore_sqs.client import SQSClient
 
-from app.aws_clients import AWSClientManager
+from app.aws_clients import AWSClientManager, retry_aws
 from app.congestion import calculate_device_congestion, calculate_group_congestion
 from app.dynamodb import query_recent_pings
 from app.models import PingPayload
@@ -59,16 +59,35 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         service_names=["sqs", "dynamodb"]
     ) as aws_client_manager:
         # Cast the clients to the correct types to make type checking happy.
-        sqs_client = cast(SQSClient, aws_client_manager.clients["sqs"])
-        dynamodb_client = cast(DynamoDBClient, aws_client_manager.clients["dynamodb"])
+        # We gotta make locals here due to the inline functions below to make mypy happy
+        local_sqs_client = cast(SQSClient, aws_client_manager.clients["sqs"])
+        local_dynamodb_client = cast(
+            DynamoDBClient, aws_client_manager.clients["dynamodb"]
+        )
 
-        # Wait for Queue
-        response = await sqs_client.get_queue_url(QueueName=settings.sqs_queue_name)
-        sqs_queue_url = response["QueueUrl"]
+        # Assign to globals, since it's all the same.
+        sqs_client = local_sqs_client
+        dynamodb_client = local_dynamodb_client
+
+        async def wait_for_queue() -> str:
+            # Wait for Queue
+            response = await local_sqs_client.get_queue_url(
+                QueueName=settings.sqs_queue_name
+            )
+            return response["QueueUrl"]
+
+        sqs_queue_url = await retry_aws(wait_for_queue)
+
         logger.info("SQS queue found.")
 
-        # Wait for Table
-        await dynamodb_client.describe_table(TableName=settings.dynamodb_table_name)
+        async def wait_for_table() -> None:
+            # Wait for Table
+            await local_dynamodb_client.describe_table(
+                TableName=settings.dynamodb_table_name
+            )
+
+        await retry_aws(wait_for_table)
+
         logger.info("DynamoDB table found.")
 
         yield
