@@ -78,7 +78,7 @@ docker compose up dynamodb elasticmq
 
 Wait for the services to be ready. You can access the ElasticMQ admin console at http://localhost:9325 to see the queue.
 
-### 4. Run the API Server and Worker
+#### 4. Run the API Server and Worker
 
 You will need two separate terminals. 
 
