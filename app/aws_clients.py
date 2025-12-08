@@ -37,50 +37,28 @@ class AWSClientManager:
 
     # __aenter__ is called when we `with` the context manager.
     async def __aenter__(self) -> Self:
-        connected = False
-        while not connected:
-            try:
-                logger.info("Attempting to connect to AWS services...")
-                # Iterate over the service names and create a client for each.
-                for service_name in self._service_names:
-                    # Create a client for the service and add it to the exit stack.
-                    client = await self._exit_stack.enter_async_context(
-                        self._session.client(  # type: ignore[call-overload]
-                            service_name,
-                            endpoint_url=getattr(
-                                settings, f"{service_name}_endpoint_url"
-                            ),
-                            region_name=settings.aws_region,
-                            aws_access_key_id=settings.aws_access_key_id,
-                            aws_secret_access_key=settings.aws_secret_access_key,
-                            config=Config(
-                                connect_timeout=2,
-                                read_timeout=25,
-                                retries={"max_attempts": 0},
-                            ),
-                        )
-                    )
-                    # Add the client to the clients dictionary.
-                    self.clients[service_name] = client
-                # Log that we connected to the services.
-                logger.info("Connection to AWS services successful.")
-                connected = True
-            except (
-                ClientError,
-                ConnectTimeoutError,
-                ReadTimeoutError,
-                ConnectionClosedError,
-                EndpointConnectionError,
-                asyncio.TimeoutError,
-            ) as e:
-                logger.warning(
-                    f"Could not connect to AWS services: {type(e).__name__}. Retrying in 3 seconds..."
+        logger.info("Creating AWS clients...")
+
+        for service_name in self._service_names:
+            # Create a client for the service and add it to the exit stack.
+            client = await self._exit_stack.enter_async_context(
+                self._session.client(  # type: ignore[call-overload]
+                    service_name,
+                    endpoint_url=getattr(settings, f"{service_name}_endpoint_url"),
+                    region_name=settings.aws_region,
+                    aws_access_key_id=settings.aws_access_key_id,
+                    aws_secret_access_key=settings.aws_secret_access_key,
+                    config=Config(
+                        connect_timeout=2,
+                        read_timeout=25,
+                        retries={"max_attempts": 0},
+                    ),
                 )
-                await self.shutdown()  # Ensure cleanup before retrying
-                await asyncio.sleep(3)
-            except Exception:
-                await self.shutdown()
-                raise
+            )
+            # Add the client to the clients dictionary.
+            self.clients[service_name] = client
+        # Log that we connected to the services.
+        logger.info("AWS Clients created successfully.")
         return self
 
     # __aexit__ is called when we exit the context manager.
