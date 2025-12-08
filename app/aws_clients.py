@@ -2,7 +2,7 @@ import asyncio
 from contextlib import AsyncExitStack
 import logging
 from types import TracebackType
-from typing import Optional, Self, Type
+from typing import Any, Callable, Optional, Self, Type
 
 import aioboto3
 from botocore.config import Config
@@ -74,3 +74,24 @@ class AWSClientManager:
         """Clean up all managed clients."""
         self.clients.clear()
         await self._exit_stack.aclose()
+
+
+async def retry_aws(
+    func: Callable[[], Any], max_retries: int = 10, retry_wait: int = 5
+) -> Any:
+    for attempt in range(max_retries):
+        try:
+            return await func()
+        except (
+            ClientError,
+            ConnectTimeoutError,
+            ReadTimeoutError,
+            ConnectionClosedError,
+            EndpointConnectionError,
+            asyncio.TimeoutError,
+        ) as e:
+            logger.warning(f"Could not connect to service. Retrying {attempt}")
+            await asyncio.sleep(retry_wait)
+    else:
+        logger.error("Failed to connect to AWS services after max retries.")
+        raise RuntimeError("Failed to connect to AWS services after max retries.")
