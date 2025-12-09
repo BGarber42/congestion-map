@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List
 
@@ -47,7 +47,7 @@ async def store_ping_in_dynamodb(
     item = {
         "h3_hex": {"S": ping_record.h3_hex},
         "device_id": {"S": ping_record.device_id},
-        "ts": {"S": ping_record.ts.isoformat()},
+        "ts": {"S": ping_record.ts.astimezone(timezone.utc).replace(microsecond=0).isoformat()},
         "lat": {"N": str(ping_record.lat)},
         "lon": {"N": str(ping_record.lon)},
         "accepted_at": {"S": ping_record.accepted_at.isoformat()},

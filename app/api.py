@@ -140,9 +140,9 @@ async def congestion(
     resolution: Annotated[int | None, Query(ge=0, le=15)] = None,
 ) -> Dict[str, Any]:
     # Set our cutoff time now
-    cutoff = datetime.now(timezone.utc) - timedelta(
+    cutoff = (datetime.now(timezone.utc) - timedelta(
         minutes=settings.default_congestion_window
-    )
+    )).replace(microsecond=0)
 
     # Set our filter hex
     filter_hex = h3_hex
